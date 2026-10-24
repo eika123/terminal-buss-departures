@@ -97,6 +97,18 @@ Møhlenpris = "NSR:StopPlace:30918"
 Lotheveien = "NSR:StopPlace:29176"
 Damsgårdsveien nr. 39 = "NSR:StopPlace:63608"
 
+# Eksempler på stoppesteder i nabolandene (Digitransit, Trafiklab, Rejseplanen)
+[helsinki]
+Rautatientori = "HSL:1040101"
+Kamppi = "HSL:1020455"
+
+[stockholm]
+T-Centralen = "740000001"
+
+[kobenhavn]
+København H = "008600611"
+
+
 
 
 

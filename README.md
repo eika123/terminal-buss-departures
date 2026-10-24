@@ -1,17 +1,41 @@
-# Avgangstider fra Entur
+# Avgangstider / Departure Board (Nordic Transit)
 
-Dette prosjektet henter sanntids avgangstider for kollektivtransport (buss, trikk, tog, metro, båt) via Enturs offentlige JourneyPlanner GraphQL API, henter lokalt vær for stoppestedet fra Meteorologisk institutt (MET / Yr), og viser alt pent formatert i terminalen med farger og symboler.
+Dette prosjektet henter sanntids avgangstider for kollektivtransport (buss, trikk, tog, metro, båt) via Enturs JourneyPlanner GraphQL API, henter lokalt vær for stoppestedet fra Meteorologisk institutt (MET / Yr), og viser alt pent formatert i terminalen med farger og symboler.
+
+Kildekoden er refaktorert med engelske funksjonsnavn, standard logging til fil (`avgangstider.log`), og støtter flere språk i brukergrensesnittet (**norsk**, **svensk**, **finsk** og **engelsk**).
 
 ---
 
 ## Egenskaper
 
+- **Flerspråklig (i18n)**: Støtter norsk (`no`), svensk (`sv`), finsk (`fi`) og engelsk (`en`) med `--lang fi` eller `LANGUAGE=fi` i `.env`.
 - **Sanntid og forsinkelser**: Viser nøyaktig minutt-nedtelling og avvik fra rutetabellen.
-- **Lokalt vær**: Henter automatisk temperatur, vind og værsymbol fra Meteorologisk institutt (Locationforecast 2.0) basert på holdeplassens geografiske koordinater.
-- **Lokal disk-cache for vær**: Værdata caches til disk (`.weather_cache.json`) i 30 minutter, slik at MET-serverne skånes selv om du restarter appen hyppig.
-- **Feiltolerant**: Ved nettverksbrudd eller feil hos Entur/MET krasjer ikke appen, men viser forrige kjente avganger med en tydelig frakoblet-advarsel.
-- **Profiler og seksjoner**: Grupper stoppesteder etter f.eks. `[hjem]`, `[jobb]` og `[uit]`, og bytt enkelt med kommandolinjeflagg som `--hjem` eller posisjonelt argument `hjem`.
+- **Lokalt vær og vindretning**: Henter automatisk temperatur, vind, kastvind, 16-dels kompassretning og grader fra Meteorologisk institutt (Locationforecast 2.0).
+- **Klikkbare lenker**: Klikk direkte på holdeplassen eller pin-ikonet for å åpne værmeldingen på Yr.no (via OSC 8 hyperlinks).
+- **Lokal disk-cache for vær**: Værdata caches til disk (`.weather_cache.json`) i 30 minutter.
+- **Feiltolerant**: Ved nettverksbrudd krasjer ikke appen, men viser forrige kjente avganger med et diskret `📡`-varsel.
+- **Profiler og seksjoner**: Grupper stoppesteder etter f.eks. `[hjem]`, `[jobb]`, og bytt enkelt med `--hjem` eller posisjonelt argument `hjem`.
 - **Globalt CLI-verktøy**: Kan installeres direkte i PATH med `uv tool install --editable .`.
+
+---
+
+## Kjøring og språkflagg
+
+```bash
+# Standard visning (norsk)
+avgangstider
+
+# Visning på finsk
+avgangstider --lang fi
+
+# Visning på svensk
+avgangstider --lang sv
+
+# Med spesifikk seksjon og språk:
+avgangstider --hjem --lang fi
+# eller:
+avgangstider hjem --lang sv
+```
 
 ---
 
@@ -42,24 +66,26 @@ pip install requests python-dotenv arrow
 
 ---
 
-### 2. Konfigurer Entur Client ID (`.env`)
+### 2. Konfigurer miljøvariabler (`.env`)
 
-Enturs API krever en unik identifikator for klienten som sender forespørsler, i formatet:
-`<company>-<application>`
+Opprett en `.env`-fil i prosjektmappen basert på `.env_example`:
 
-1. Opprett en `.env`-fil basert på `.env_example`:
-   ```bash
-   cp .env_example .env
-   ```
+```dotenv
+# 1. Meteorologisk institutt (påkrevd for værdata i alle land)
+# MET krever at du identifiserer deg med appnavn og din egen kontakt-e-post/URL:
+MET_USER_AGENT="MyTransitBoard/1.0 (contact: din-epost@example.com)"
 
-2. Generer et tilfeldig tall (for eksempel ved hjelp av `shuf` i bash) for å gi applikasjonen et unikt navn:
-   ```bash
-   echo "etClientName=\"mittnavn-avgangstider-$(shuf -i 1000-9999 -n 1)\"" > .env
-   ```
-   Eller åpne `.env` i en teksteditor og sett inn verdien manuelt, for eksempel:
-   ```dotenv
-   etClientName="mittnavn-avgangstider4821"
-   ```
+# 2. Norge / Entur (påkrevd KUN hvis du bruker norske stoppesteder)
+# Format: <company>-<application>
+ET_CLIENT_NAME="mittnavn-avgangstider-4821"
+
+# 3. Finland / Digitransit (påkrevd KUN hvis du bruker finske stoppesteder)
+# Gratis API-nøkkel fra: https://digitransit.fi/en/developers/api-registration/
+DIGITRANSIT_SUBSCRIPTION_KEY="din-digitransit-nokkel"
+
+# 4. Valgfritt: Standardspråk ('no', 'sv', 'fi', 'en')
+LANGUAGE="no"
+```
 
 ---
 
@@ -67,20 +93,37 @@ Enturs API krever en unik identifikator for klienten som sender forespørsler, i
 
 Filen `stoppesteder.txt` **må** være inndelt i seksjoner med hakeparenteser (`[...]`). Den **øverste seksjonen** i filen blir automatisk brukt som standard når du kjører programmet uten argumenter.
 
-1. Gå til [stoppesteder.entur.org](https://stoppesteder.entur.org/) og søk opp stoppestedene dine for å finne `NSR:StopPlace`-ID-en (f.eks. `NSR:StopPlace:58366`).
-2. Opprett eller rediger `stoppesteder.txt` (se `stoppesteder_eksempel.txt` for referanse):
-   ```ini
-   # Den første/øverste seksjonen er standard (f.eks. [hjem])
-   [hjem]
-   Klimavegen = "NSR:StopPlace:53434"
-   Workinnmarka skole = "NSR:StopPlace:53105"
+#### Hvor finner du stoppesteder og ID-er i Norden?
 
-   [jobb]
-   Forskningsparken = "NSR:StopPlace:9912"
+| Land | Tjeneste | Hvor finner du stoppesteder / ID | Eksempel på ID |
+| :--- | :--- | :--- | :--- |
+| 🇳🇴 **Norge** | Entur (NSR) | [stoppesteder.entur.org](https://stoppesteder.entur.org/) | `NSR:StopPlace:58366` |
+| 🇫🇮 **Finland** | Digitransit / HSL | [reittiopas.hsl.fi](https://reittiopas.hsl.fi/) (klikk på holdeplass og se URL/tallkode) eller [digitransit.fi](https://digitransit.fi/) | `HSL:1040101` / `1040101` |
+| 🇸🇪 **Sverige** | Trafiklab (ResRobot) | [trafiklab.se/api/resrobot-v21/](https://www.trafiklab.se/) eller [sl.se](https://sl.se/) (stoppestedskoder / EVA-nummer) | `740000001` (Stockholm C) |
+| 🇩🇰 **Danmark** | Rejseplanen | [labs.rejseplanen.dk](https://labs.rejseplanen.dk/) eller [rejseplanen.dk](https://www.rejseplanen.dk/) (stoppestedsnummer) | `008600611` (København H) |
 
-   [biblioteket]
-   Kulturhuset = "NSR:StopPlace:5511"
-   ```
+#### Eksempel på `stoppesteder.txt`:
+
+Opprett eller rediger `stoppesteder.txt` (se `stoppesteder_eksempel.txt` for referanse):
+```ini
+# Den første/øverste seksjonen er standard (f.eks. [hjem])
+[hjem]
+Klimavegen = "NSR:StopPlace:53434"
+Workinnmarka skole = "NSR:StopPlace:53105"
+
+[jobb]
+Forskningsparken = "NSR:StopPlace:9912"
+
+[helsinki]
+Rautatientori = "HSL:1040101"
+Kamppi = "HSL:1020455"
+
+[stockholm]
+T-Centralen = "740000001"
+
+[kobenhavn]
+København H = "008600611"
+```
 
 ---
 
