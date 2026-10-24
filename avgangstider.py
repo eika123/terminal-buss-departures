@@ -757,23 +757,27 @@ def main() -> None:
     session = requests.Session()
     toem_terminal()
 
-    # 6. Hovedløkke
-    while True:
-        print("Henter avgangsinfo...")
-        hent_og_oppdater_avgangsinfo(
-            session=session,
-            stoppesteder_tilstand=tilstander,
-            time_range_seconds=args.timerange,
-            departures_count=args.antall,
-        )
+    # 6. Hovedløkke -- wrap i try except hvis scriptet kjøres via uv tool
+    try:
+        while True:
+            print("Henter avgangsinfo...")
+            hent_og_oppdater_avgangsinfo(
+                session=session,
+                stoppesteder_tilstand=tilstander,
+                time_range_seconds=args.timerange,
+                departures_count=args.antall,
+            )
 
-        toem_terminal()
+            toem_terminal()
 
-        for tilstand in tilstander.values():
-            render_stoppested(tilstand.navn, tilstand, DEFAULT_TERMINAL_WIDTH)
+            for tilstand in tilstander.values():
+                render_stoppested(tilstand.navn, tilstand, DEFAULT_TERMINAL_WIDTH)
 
-        print("=" * (DEFAULT_TERMINAL_WIDTH + 1))
-        time.sleep(args.intervall)
+            print("=" * (DEFAULT_TERMINAL_WIDTH + 1))
+            time.sleep(args.intervall)
+    except KeyboardInterrupt:
+        print("\nAvslutter...")
+        sys.exit(0)
 
 
 if __name__ == "__main__":
