@@ -3,4 +3,5 @@ __pycache__
 stoppesteder.txt
 *.egg-info/
 .weather_cache.json
+avgangstider.log
 

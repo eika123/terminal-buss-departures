@@ -1,6 +1,7 @@
 import argparse
 from dataclasses import dataclass
 import json
+import logging
 from pathlib import Path
 from string import Template
 import subprocess
@@ -20,6 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent
 ENTUR_GRAPHQL_URL = "https://api.entur.io/journey-planner/v3/graphql"
 MET_LOCATIONFORECAST_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 WEATHER_CACHE_FILE = BASE_DIR / ".weather_cache.json"
+LOG_FILE = BASE_DIR / "avgangstider.log"
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.WARNING,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    encoding="utf-8",
+)
 
 DEFAULT_TIME_RANGE_SECONDS = 5400  # 90 minutter (1.5 time)
 DEFAULT_DEPARTURES_COUNT = 10
@@ -531,9 +541,12 @@ def hent_og_oppdater_avgangsinfo(
                     # Hent eller oppdater vær
                     tilstand.vaer = hent_vaer_fra_met(session, tilstand.latitude, tilstand.longitude)
             else:
-                tilstand.feilmelding = f"Ingen data funnet for ID {tilstand.nsr_id}"
+                feil = f"Ingen data funnet for ID {tilstand.nsr_id}"
+                tilstand.feilmelding = feil
+                logging.warning(f"Entur: {feil} ({alias_navn})")
         except (requests.RequestException, ValueError, Exception) as e:
             tilstand.feilmelding = str(e)
+            logging.warning(f"Nettverksfeil for {alias_navn} ({tilstand.nsr_id}): {e}")
 
 
 # ==============================================================================
@@ -601,9 +614,13 @@ def render_stoppested(alias_navn: str, tilstand: StoppestedData, terminal_width:
     if tilstand.feilmelding:
         if tilstand.response and tilstand.sist_oppdatert:
             sist_tid = tilstand.sist_oppdatert.format("HH:mm:ss")
-            print(f"⚠️  Kunne ikke hente ferske data ({tilstand.feilmelding}). Viser gamle data fra kl. {sist_tid}:")
+            YELLOW = "\033[93m" if TERM_MODE != TermStil.KLASSISK else ""
+            RESET = "\033[0m" if TERM_MODE != TermStil.KLASSISK else ""
+            ikon = "📡" if TERM_MODE != TermStil.KLASSISK else "[!]"
+            print(f" {YELLOW}{ikon} Frakoblet nettverk. Viser sist lagrede data fra kl. {sist_tid}{RESET}")
         else:
-            print(f"❌ Kunne ikke hente data for {visningsnavn}: {tilstand.feilmelding}")
+            ikon = "📡" if TERM_MODE != TermStil.KLASSISK else "[X]"
+            print(f" {ikon} Frakoblet nettverk. Kunne ikke hente data for {visningsnavn}.")
             return
 
     if not stop_data:
