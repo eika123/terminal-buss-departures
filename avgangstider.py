@@ -46,7 +46,6 @@ class TermStil:
 TERM_MODE=TermStil.MODERNE
 
 
-
 def minutter_til_avgang(expected_iso_str: str) -> str:
     """Regner ut hvor mange minutter det er til bussen kommer, basert på sanntid."""
     # 1. Hent tidspunktet for når bussen forventes å dra
@@ -137,16 +136,6 @@ def iso_til_normaltid(time: str, format="HH:mm") -> str:
 # from a specific stop with real-time updates.
 #
 
-# stoppesteder = {
-#         "Klimavegen": "NSR:StopPlace:53434",
-#         "Workinnmarka skole": "NSR:StopPlace:53105",
-#         "Bo-i-Nord": "NSR:StopPlace:55874",
-#         "Olsgårdvegen": "NSR:StopPlace:56549",
-#         "Jekta": "NSR:StopPlace:52971",
-#         "Giæverbukta bussterminal": "NSR:StopPlace:55902",
-#         "Åslivegen": "NSR:StopPlace:53370",
-#     }
-
 
 def construct_stop_place_table_query_body(nsr_stop_place_id: str, time_range=3600):
     raw_template = """
@@ -200,39 +189,7 @@ def debug_and_send_stop_place_query(query: str, debug=False):
     req = requests.Request(method="POST", url=url, headers=headers, json=body)
     prepared = session.prepare_request(req)
 
-    # ==============================================================================
-    # GENERER EN MULTILINE CURL-KOMMANDO
-    # ==============================================================================
-    # Hent ut body som en vanlig streng
-    curl_body = prepared.body.decode('utf-8') if isinstance(prepared.body, bytes) else prepared.body
-    
-    # Bygg opp listen med argumenter (med tabulator/innrykk)
-    curl_lines = [f"curl -X {prepared.method} '{prepared.url}' \\"]
-    
-    # Legg til hver header på en egen linje
-    for k, v in prepared.headers.items():
-        curl_lines.append(f"  -H '{k}: {v}' \\")
-        
-    # Legg til data-payloaden til slutt
-    curl_lines.append(f"  -d '{curl_body}'")
-    
-    # Sett alt sammen med linjeskift
-    multiline_curl = "\n".join(curl_lines)
-
-    if debug: print("--- GENERERT CURL KOMMANDO ---")
-    if debug: print(multiline_curl)
-    if debug: print("-------------------------------\n")
-
-    # 3. Send den når du er klar
     response = session.send(prepared)
-
-    if debug: print()
-    if debug: print("----- RECEIVED RESPONSE HEADERS --------")
-    if debug: print(response.headers)
-    if debug: print("----------------------------------------")
-    if debug: print(f"Status code: {response.status_code}")
-    if debug: print(f"Response:\n{json.dumps(response.json(), indent=2, ensure_ascii=False)}")
-
     return response.json()
 
 
@@ -249,7 +206,6 @@ def hent_avgangsinfo(stoppesteder: dict):
     return responsedict
 
 total_bredde = 95
-# Test kjøring
 
 command = 'cls' if sys.platform.startswith('win') else 'clear'
 subprocess.run([command], check=True)
