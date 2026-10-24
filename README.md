@@ -49,7 +49,7 @@ Enturs API krever en unik identifikator for klienten som sender forespørsler, i
    ```
    Eller åpne `.env` i en teksteditor og sett inn verdien manuelt, for eksempel:
    ```dotenv
-   etClientName="mittnavn-avgangstider-4821"
+   etClientName="mittnavn-avgangstider4821"
    ```
 
 ---
