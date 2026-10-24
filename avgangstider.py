@@ -336,7 +336,7 @@ def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, dict[str, str
         if not profiler:
             print(f"Ingen profiler/seksjoner funnet i {filsti}.")
             print("Definer minst én seksjon med stoppesteder, f.eks.:")
-            print('[hjem]\nKlimavegen = "NSR:StopPlace:53434"')
+            print('[hjem]\nOlaf Ryes plass = "NSR:StopPlace:6433"')
             sys.exit(1)
 
         return profiler
@@ -653,33 +653,7 @@ def render_stoppested(alias_navn: str, tilstand: StoppestedData, terminal_width:
             )
 
 
-# ==============================================================================
-# HOVEDFUNKSJON OG ARGUMENT-PARSING
-# ==============================================================================
-def main() -> None:
-    global config
-
-    # 1. Valider og last inn .env-konfigurasjon
-    env_sti = BASE_DIR / ".env"
-    if not env_sti.is_file():
-        print(f"Feil: Fant ikke konfigurasjonsfilen: {env_sti}")
-        print("Du må opprette en '.env'-fil i prosjektmappen basert på '.env_example'.")
-        print("Eksempel:")
-        print("  cp .env_example .env")
-        print('  echo \'etClientName="mittnavn-avgangstider-$(shuf -i 1000-9999 -n 1)"\' > .env')
-        sys.exit(1)
-
-    config = dotenv_values(env_sti)
-    if not config or "etClientName" not in config or not config["etClientName"]:
-        print(f"Feil: Mangler gyldig 'etClientName' i {env_sti}")
-        print("Filen må inneholde en unik identifikator på formen:")
-        print('etClientName="<company>-<application>"')
-        sys.exit(1)
-
-    # 2. Last inn stoppesteder og profiler (validerer også at stoppesteder.txt finnes)
-    alle_profiler = last_inn_stoppesteder()
-
-    # 3. Sett opp kommandolinjeargumenter
+def generer_kommandolinje_argumenter(alle_profiler: dict[str, dict[str, str]]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Vis avgangstider for kollektivtransport fra Entur med værdata fra MET/Yr.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -726,14 +700,42 @@ def main() -> None:
         help=f"Oppdateringsintervall i sekunder (standard: {DEFAULT_REFRESH_INTERVAL_SECONDS}s)",
     )
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+# ==============================================================================
+# HOVEDFUNKSJON OG ARGUMENT-PARSING
+# ==============================================================================
+def main() -> None:
+    global config
+
+    # 1. Valider og last inn .env-konfigurasjon
+    env_sti = BASE_DIR / ".env"
+    if not env_sti.is_file():
+        print(f"Feil: Fant ikke konfigurasjonsfilen: {env_sti}")
+        print("Du må opprette en '.env'-fil i prosjektmappen basert på '.env_example'.")
+        print("Eksempel:")
+        print("  cp .env_example .env")
+        print('  echo \'etClientName="mittnavn-avgangstider-$(shuf -i 1000-9999 -n 1)"\' > .env')
+        sys.exit(1)
+
+    config = dotenv_values(env_sti)
+    if not config or "etClientName" not in config or not config["etClientName"]:
+        print(f"Feil: Mangler gyldig 'etClientName' i {env_sti}")
+        print("Filen må inneholde en unik identifikator på formen:")
+        print('etClientName="<company>-<application>"')
+        sys.exit(1)
+
+    # 2. Last inn stoppesteder og profiler (validerer også at stoppesteder.txt finnes)
+    alle_profiler = last_inn_stoppesteder()
+    args = generer_kommandolinje_argumenter(alle_profiler)
 
     # 4. Velg profil
     valgt_profil = args.profil or (args.posisjonell_profil.lower() if args.posisjonell_profil else None)
 
     if valgt_profil:
         if valgt_profil not in alle_profiler:
-            tilgjengelige = ", ".join(f"'{p}'" for p in alle_profiler.keys())
+            tilgjengelige = ", ".join(f"'{p}'" for p in alle_profiler)
             print(f"Feil: Profil '{valgt_profil}' finnes ikke i stoppesteder.txt.")
             print(f"Tilgjengelige profiler: {tilgjengelige}")
             sys.exit(1)
