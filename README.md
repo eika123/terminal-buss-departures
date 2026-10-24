@@ -67,18 +67,29 @@ Du må spesifisere hvilke stoppesteder du ønsker å overvåke:
 
 ---
 
-## Kjøring
+## Kjøring og installasjon
 
-Start programmet med:
+### Alternativ A: Kjør direkte med `uv` (fra prosjektmappen)
 
 ```bash
 uv run avgangstider.py
 ```
 
-Eller med standard python:
+### Alternativ B: Installer som globalt CLI-verktøy med `uv tool`
+
+Du kan installere kommandoen direkte inn i PATH (`~/.local/bin/avgangstider`) slik at den kan kjøres fra hvilken som helst mappe på maskinen:
+
 ```bash
-python avgangstider.py
+# Installer lokalt i editable-modus fra prosjektmappen:
+uv tool install --editable .
 ```
+
+Deretter kan du starte programmet hvor som helst fra terminalen:
+```bash
+avgangstider
+```
+
+*(Tips: Hvis du oppdaterer koden eller endrer `stoppesteder.txt`, trer endringene i kraft med en gang takket være `--editable`.)*
 
 ---
 

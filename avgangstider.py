@@ -7,34 +7,45 @@ import time
 import subprocess
 import sys
 import re
+from pathlib import Path
 
 from dotenv import dotenv_values
-config = dotenv_values(".env")
 
+BASE_DIR = Path(__file__).resolve().parent
 
-stoppesteder={}
-try:
-    with open("stoppesteder.txt", "r", encoding="utf-8") as f:
-        for linje in f:
-            linje = linje.strip()
-            
-            # Hopper over tomme linjer, kommentarer eller linjer uten likhetstegn
-            if not linje or linje.startswith("#") or "=" not in linje:
-                continue
-            
-            # Splitter kun på det FØRSTE likhetstegnet
-            navn, nsr_id = linje.split("=", 1)
-            
-            # Vasker bort unødvendige mellomrom og doble/enkle fnutter hvis de finnes
-            ren_navn = navn.strip().strip('"').strip("'")
-            ren_id = nsr_id.strip().strip('"').strip("'")
-            
-            stoppesteder[ren_navn] = ren_id
-except FileNotFoundError:
-    print("Du må opprette filen stoppesteder.txt og legge stoppestedne der.")
-    print("Se på stoppesteder_eksempel.txt hvordan filen skal se ut")
-    print("Du kan finne stoppesteder på stoppesteder.entur.org")
-    sys.exit(1)
+config = {}
+stoppesteder = {}
+
+def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, str]:
+    if filsti is None:
+        filsti = BASE_DIR / "stoppesteder.txt"
+
+    resultat: dict[str, str] = {}
+    try:
+        with open(filsti, "r", encoding="utf-8") as f:
+            for linje in f:
+                linje = linje.strip()
+                
+                # Hopper over tomme linjer, kommentarer eller linjer uten likhetstegn
+                if not linje or linje.startswith("#") or "=" not in linje:
+                    continue
+                
+                # Splitter kun på det FØRSTE likhetstegnet
+                navn, nsr_id = linje.split("=", 1)
+                
+                # Vasker bort unødvendige mellomrom og doble/enkle fnutter hvis de finnes
+                ren_navn = navn.strip().strip('"').strip("'")
+                ren_id = nsr_id.strip().strip('"').strip("'")
+                
+                resultat[ren_navn] = ren_id
+        return resultat
+    except FileNotFoundError:
+        print(f"Fant ikke stoppesteder-filen på: {filsti}")
+        print("Du må opprette filen stoppesteder.txt og legge stoppestedene der.")
+        print("Se på stoppesteder_eksempel.txt hvordan filen skal se ut.")
+        print("Du kan finne stoppesteder på stoppesteder.entur.org")
+        sys.exit(1)
+
 
 nycthemeron = 24*3600 # et døgn
 hour = 3600
@@ -207,49 +218,71 @@ def hent_avgangsinfo(stoppesteder: dict):
 
 total_bredde = 95
 
-command = 'cls' if sys.platform.startswith('win') else 'clear'
-subprocess.run([command], check=True)
 
-while True:
-    
-    # ==============================================================================
-    # TØM TERMINALEN (TUI-EFFEKT)
-    # ==============================================================================
-    # 'cls' brukes på Windows, 'clear' på Linux/macOS
-    # Sjekker om systemet er Windows ('nt'), velger 'cls', ellers 'clear'
-    print("henter avgangsinfo...")
-    avgangsinfo = hent_avgangsinfo(stoppesteder)
+
+def main():
+
+    global config, stoppesteder
+
+    config = dotenv_values(BASE_DIR / ".env")
+    if not config or "etClientName" not in config:
+        print(f"Fant ikke gyldig etClientName i {BASE_DIR / '.env'}")
+        print("Opprett en .env-fil i prosjektmappen basert på .env_example.")
+        sys.exit(1)
+
+    stoppesteder = last_inn_stoppesteder()
+
+
     command = 'cls' if sys.platform.startswith('win') else 'clear'
     subprocess.run([command], check=True)
 
-    for response in avgangsinfo.values():
+    while True:
 
-        api_stoppested_navn = response['data']['stopPlace']['name']
-        estimated_calls = response['data']['stopPlace']['estimatedCalls']
-        if not estimated_calls: continue
-        print(f"{f' {api_stoppested_navn} ':-^{total_bredde}}📍")
-        for call in estimated_calls:
-            # f.eks 28-linjen i Tromsø er på formatet "TRO:Line:1_28". Fisker ut linjenummeret 28.
-            # funksjonen finn_linjenummer fjerner uuid hvis en buss ikke har sanntidsdata
-            linje_nr = call["serviceJourney"]["journeyPattern"]["line"].get("publicCode")
-            if not linje_nr:
-                "Ukjent"
+        print("henter avgangsinfo...")
+        avgangsinfo = hent_avgangsinfo(stoppesteder)
+        
+        # ==============================================================================
+        # TØM TERMINALEN (TUI-EFFEKT)
+        # ==============================================================================
+        # 'cls' brukes på Windows, 'clear' på Linux/macOS
+        # Sjekker om systemet er Windows ('nt'), velger 'cls', ellers 'clear'
+        command = 'cls' if sys.platform.startswith('win') else 'clear'
+        subprocess.run([command], check=True)
+
+        for response in avgangsinfo.values():
+
+            api_stoppested_navn = response['data']['stopPlace']['name']
+            estimated_calls = response['data']['stopPlace']['estimatedCalls']
+            if not estimated_calls: continue
+            print(f"{f' {api_stoppested_navn} ':-^{total_bredde}}📍")
+            for call in estimated_calls:
+                linje_nr = call["serviceJourney"]["journeyPattern"]["line"].get("publicCode")
 
 
-            tid_til_forventet_avgang = minutter_til_avgang(call['expectedDepartureTime']) # f.eks. "5 min" eller "Nå"
+                tid_til_forventet_avgang = minutter_til_avgang(call['expectedDepartureTime']) # f.eks. "5 min" eller "Nå"
 
-            destinasjon = call["destinationDisplay"]["frontText"] # F.eks "Solligården via sentrum"
+                destinasjon = call["destinationDisplay"]["frontText"] # F.eks "Solligården via sentrum"
 
-            planlagt_avgang_iso = call['aimedDepartureTime']
-            forvented_avgang_iso = call['expectedDepartureTime']
-            forsinkelse = formater_forsinkelse(planlagt_avgang_iso, forvented_avgang_iso)
-            planlagt_avgang = iso_til_normaltid(planlagt_avgang_iso)
-            forvented_avgang = iso_til_normaltid(forvented_avgang_iso)
+                planlagt_avgang_iso = call['aimedDepartureTime']
+                forvented_avgang_iso = call['expectedDepartureTime']
+                forsinkelse = formater_forsinkelse(planlagt_avgang_iso, forvented_avgang_iso)
+                planlagt_avgang = iso_til_normaltid(planlagt_avgang_iso)
+                forvented_avgang = iso_til_normaltid(forvented_avgang_iso)
 
-            if call['realtime']:
-                print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_forventet_avgang:6}  {forvented_avgang} ({planlagt_avgang}) -- {forsinkelse:18}")
-            else:
-                tid_til_planlagt_avgang = minutter_til_avgang(call['aimedDepartureTime']) # f.eks. "5 min" eller "Nå"
-                print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_forventet_avgang:6}  {planlagt_avgang} -- mangler sanntidsdata")
-    print("="*(total_bredde + 1))
-    time.sleep(60)
+                if call['realtime']:
+                    print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_forventet_avgang:6}  {forvented_avgang} ({planlagt_avgang}) -- {forsinkelse:18}")
+                else:
+                    tid_til_planlagt_avgang = minutter_til_avgang(call['aimedDepartureTime']) # f.eks. "5 min" eller "Nå"
+                    print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_planlagt_avgang:6}  {planlagt_avgang} -- mangler sanntidsdata")
+        print("="*(total_bredde + 1))
+        time.sleep(60)
+
+
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nAvslutter...")
+        sys.exit(0)
