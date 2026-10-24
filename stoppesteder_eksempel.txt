@@ -1,0 +1,2 @@
+Jernbanetorget = "NSR:StopPlace:58366"
+Stortorvet = "NSR:StopPlace:4160"
