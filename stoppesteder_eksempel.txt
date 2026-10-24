@@ -1,2 +1,13 @@
+# Den øverste seksjonen er standardprofilen som brukes når ingen argumenter oppgis
+[hjem]
 Jernbanetorget = "NSR:StopPlace:58366"
 Stortorvet = "NSR:StopPlace:4160"
+
+# Egne seksjoner for steder du frekventerer
+[jobb]
+Nationaltheatret = "NSR:StopPlace:59872"
+
+[biblioteket]
+Deichman = "NSR:StopPlace:58366"
+
+

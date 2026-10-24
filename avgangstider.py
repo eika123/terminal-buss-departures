@@ -1,3 +1,4 @@
+import argparse
 from string import Template
 import textwrap
 import requests
@@ -16,20 +17,45 @@ BASE_DIR = Path(__file__).resolve().parent
 config = {}
 stoppesteder = {}
 
-def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, str]:
+def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, dict[str, str]]:
+    """
+    Leser inn stoppesteder fra fil, inndelt i seksjoner (f.eks. [hjem], [jobb]).
+    Returnerer en dict av profiler: {'hjem': {...}, 'jobb': {...}, ...}
+    """
     if filsti is None:
         filsti = BASE_DIR / "stoppesteder.txt"
 
-    resultat: dict[str, str] = {}
+    profiler: dict[str, dict[str, str]] = {}
+    aktiv_profil: str | None = None
+
     try:
         with open(filsti, "r", encoding="utf-8") as f:
-            for linje in f:
+            for linjenr, linje in enumerate(f, start=1):
                 linje = linje.strip()
                 
-                # Hopper over tomme linjer, kommentarer eller linjer uten likhetstegn
-                if not linje or linje.startswith("#") or "=" not in linje:
+                # Hopper over tomme linjer eller kommentarer
+                if not linje or linje.startswith("#"):
                     continue
                 
+                # Sjekker om linjen definerer en seksjon/profil, f.eks. [hjem]
+                if linje.startswith("[") and linje.endswith("]"):
+                    aktiv_profil = linje[1:-1].strip().lower()
+                    if not aktiv_profil:
+                        print(f"Feil på linje {linjenr} i {filsti}: Tom seksjon '[]'.")
+                        sys.exit(1)
+                    if aktiv_profil not in profiler:
+                        profiler[aktiv_profil] = {}
+                    continue
+
+                if "=" not in linje:
+                    continue
+                
+                # Hvis vi finner et stoppested før noen seksjon er definert:
+                if aktiv_profil is None:
+                    print(f"Feil i {filsti}: Stoppesteder må plasseres under en seksjon (f.eks. [hjem] eller [jobb]).")
+                    print(f"Linje {linjenr}: '{linje}' mangler overskrift/seksjon.")
+                    sys.exit(1)
+
                 # Splitter kun på det FØRSTE likhetstegnet
                 navn, nsr_id = linje.split("=", 1)
                 
@@ -37,8 +63,15 @@ def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, str]:
                 ren_navn = navn.strip().strip('"').strip("'")
                 ren_id = nsr_id.strip().strip('"').strip("'")
                 
-                resultat[ren_navn] = ren_id
-        return resultat
+                profiler[aktiv_profil][ren_navn] = ren_id
+
+        if not profiler:
+            print(f"Ingen profiler/seksjoner funnet i {filsti}.")
+            print("Definer minst én seksjon med stoppesteder, f.eks.:")
+            print("[hjem]\nKlimavegen = \"NSR:StopPlace:53434\"")
+            sys.exit(1)
+
+        return profiler
     except FileNotFoundError:
         print(f"Fant ikke stoppesteder-filen på: {filsti}")
         print("Du må opprette filen stoppesteder.txt og legge stoppestedene der.")
@@ -230,7 +263,56 @@ def main():
         print("Opprett en .env-fil i prosjektmappen basert på .env_example.")
         sys.exit(1)
 
-    stoppesteder = last_inn_stoppesteder()
+    alle_profiler = last_inn_stoppesteder()
+
+    # Dynamisk argparse basert på seksjonene i stoppesteder.txt
+    parser = argparse.ArgumentParser(
+        description="Vis avgangstider for kollektivtransport fra Entur.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    # Legg til dynamiske flagg for hver profil (f.eks. --hjem, --jobb, --biblioteket)
+    gruppe = parser.add_mutually_exclusive_group()
+    for index, profil_navn in enumerate(alle_profiler.keys()):
+        hjelpetekst = f"Vis stoppesteder for '{profil_navn}'"
+        if index == 0:
+            hjelpetekst += " (standard)"
+        gruppe.add_argument(
+            f"--{profil_navn}",
+            dest="profil",
+            action="store_const",
+            const=profil_navn,
+            help=hjelpetekst
+        )
+
+    # Støtter også posisjonelt argument (f.eks. 'avgangstider hjem')
+    parser.add_argument(
+        "posisjonell_profil",
+        nargs="?",
+        default=None,
+        help="Valgfri profil / sted (f.eks. 'hjem' eller 'jobb')"
+    )
+
+    args = parser.parse_args()
+
+    # Avgjør hvilken profil som skal brukes
+    valgt_profil = args.profil or (args.posisjonell_profil.lower() if args.posisjonell_profil else None)
+
+    if valgt_profil:
+        if valgt_profil not in alle_profiler:
+            tilgjengelige = ", ".join(f"'{p}'" for p in alle_profiler.keys())
+            print(f"Feil: Profil '{valgt_profil}' finnes ikke i stoppesteder.txt.")
+            print(f"Tilgjengelige profiler: {tilgjengelige}")
+            sys.exit(1)
+        stoppesteder = alle_profiler[valgt_profil]
+    else:
+        # Standard: bruk den aller første seksjonen som er definert i fila
+        foerste_profil = next(iter(alle_profiler.keys()))
+        stoppesteder = alle_profiler[foerste_profil]
+
+    if not stoppesteder:
+        print("Ingen stoppesteder funnet for valgt profil.")
+        sys.exit(1)
 
 
     command = 'cls' if sys.platform.startswith('win') else 'clear'
@@ -276,8 +358,6 @@ def main():
                     print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_planlagt_avgang:6}  {planlagt_avgang} -- mangler sanntidsdata")
         print("="*(total_bredde + 1))
         time.sleep(60)
-
-
 
 
 if __name__ == "__main__":

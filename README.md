@@ -56,14 +56,48 @@ Enturs API krever en unik identifikator for klienten som sender forespørsler, i
 
 ### 3. Konfigurer stoppesteder (`stoppesteder.txt`)
 
-Du må spesifisere hvilke stoppesteder du ønsker å overvåke:
+Filen `stoppesteder.txt` **må** være inndelt i seksjoner med hakeparenteser (`[...]`). Den **øverste seksjonen** i filen blir automatisk brukt som standard når du kjører programmet uten argumenter.
 
 1. Gå til [stoppesteder.entur.org](https://stoppesteder.entur.org/) og søk opp stoppestedene dine for å finne `NSR:StopPlace`-ID-en (f.eks. `NSR:StopPlace:58366`).
-2. Opprett filen `stoppesteder.txt` (se `stoppesteder_eksempel.txt` for referanse):
-   ```text
-   Jernbanetorget = "NSR:StopPlace:58366"
-   Stortorvet = "NSR:StopPlace:4160"
+2. Opprett eller rediger `stoppesteder.txt` (se `stoppesteder_eksempel.txt` for referanse):
+   ```ini
+   # Den første/øverste seksjonen er standard (f.eks. [hjem])
+   [hjem]
+   Klimavegen = "NSR:StopPlace:53434"
+   Workinnmarka skole = "NSR:StopPlace:53105"
+
+   [jobb]
+   Forskningsparken = "NSR:StopPlace:9912"
+
+   [biblioteket]
+   Kulturhuset = "NSR:StopPlace:5511"
    ```
+
+---
+
+## Kjøring og profiler
+
+Applikasjonen leser seksjonene i `stoppesteder.txt` dynamisk og lager tilsvarende kommandolinjeargumenter og `--help`-oversikt:
+
+### Eksempler på kjøring:
+
+```bash
+# Viser stoppestedene fra den ØVERSTE seksjonen i stoppesteder.txt (f.eks. [hjem])
+avgangstider
+
+# Viser eksplisitt stoppesteder for [hjem]
+avgangstider --hjem
+# eller posisjonelt:
+avgangstider hjem
+
+# Viser stoppesteder for [jobb]
+avgangstider --jobb
+# eller posisjonelt:
+avgangstider jobb
+
+# Se tilgjengelige profiler og hjelpetekst
+avgangstider --help
+```
 
 ---
 
