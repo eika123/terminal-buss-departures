@@ -539,6 +539,11 @@ def hent_og_oppdater_avgangsinfo(
 # ==============================================================================
 # UTSKRIFT OG VISNING
 # ==============================================================================
+def lag_terminal_lenke(url: str, tekst: str) -> str:
+    """Pakker inn tekst i en OSC 8 ANSI-sekvens slik at teksten blir en klikkbar lenke i terminalen."""
+    return f"\033]8;;{url}\033\\{tekst}\033]8;;\033\\"
+
+
 def formater_vaer_streng(vaer: VaerObservasjon | None) -> str:
     """Formaterer vær-teksten for overskriften inkludert vindretning, grader og kastvind."""
     if not vaer:
@@ -572,10 +577,25 @@ def render_stoppested(alias_navn: str, tilstand: StoppestedData, terminal_width:
     # Bruk offisielt navn fra API hvis tilgjengelig, ellers brukerens alias
     visningsnavn = stop_data.get("name") if stop_data and stop_data.get("name") else alias_navn
     vaer_tekst = formater_vaer_streng(tilstand.vaer)
-    header_tekst = f" {visningsnavn}{vaer_tekst} "
 
-    # Header
-    print(f"{header_tekst:-^{terminal_width}}📍")
+    # Bygg Yr-lenke hvis koordinater er tilgjengelige
+    yr_url: str | None = None
+    if tilstand.latitude is not None and tilstand.longitude is not None:
+        yr_url = f"https://www.yr.no/nb/værvarsel/daglig-tabell/{tilstand.latitude:.4f},{tilstand.longitude:.4f}"
+
+    if yr_url and TERM_MODE == TermStil.MODERNE:
+        # Gjør selve visningsnavnet og pin-ikonet klikkbart
+        klikkbart_navn = lag_terminal_lenke(yr_url, visningsnavn)
+        klikkbar_pin = lag_terminal_lenke(yr_url, "📍")
+        # Regn ut fyll-lengde basert på ren synlig tekst (uten ANSI-koder)
+        synlig_lengde = len(f" {visningsnavn}{vaer_tekst} ")
+        side_streker = max(1, (terminal_width - synlig_lengde) // 2)
+        venstre = "-" * side_streker
+        hoyre = "-" * (terminal_width - synlig_lengde - side_streker)
+        print(f"{venstre} {klikkbart_navn}{vaer_tekst} {hoyre}{klikkbar_pin}")
+    else:
+        header_tekst = f" {visningsnavn}{vaer_tekst} "
+        print(f"{header_tekst:-^{terminal_width}}📍")
 
     # Hvis vi har en feilmelding:
     if tilstand.feilmelding:
