@@ -1,8 +1,17 @@
 # Avgangstider fra Entur
 
-Dette prosjektet henter sanntids avgangstider for kollektivtransport (buss, trikk, tog, etc.) via Enturs offentlige JourneyPlanner GraphQL API og viser dem pent formatert i terminalen.
+Dette prosjektet henter sanntids avgangstider for kollektivtransport (buss, trikk, tog, metro, båt) via Enturs offentlige JourneyPlanner GraphQL API, henter lokalt vær for stoppestedet fra Meteorologisk institutt (MET / Yr), og viser alt pent formatert i terminalen med farger og symboler.
 
-> **Merk:** Applikasjonen er per i dag kun testet på bussruter i Tromsø.
+---
+
+## Egenskaper
+
+- **Sanntid og forsinkelser**: Viser nøyaktig minutt-nedtelling og avvik fra rutetabellen.
+- **Lokalt vær**: Henter automatisk temperatur, vind og værsymbol fra Meteorologisk institutt (Locationforecast 2.0) basert på holdeplassens geografiske koordinater.
+- **Lokal disk-cache for vær**: Værdata caches til disk (`.weather_cache.json`) i 30 minutter, slik at MET-serverne skånes selv om du restarter appen hyppig.
+- **Feiltolerant**: Ved nettverksbrudd eller feil hos Entur/MET krasjer ikke appen, men viser forrige kjente avganger med en tydelig frakoblet-advarsel.
+- **Profiler og seksjoner**: Grupper stoppesteder etter f.eks. `[hjem]`, `[jobb]` og `[uit]`, og bytt enkelt med kommandolinjeflagg som `--hjem` eller posisjonelt argument `hjem`.
+- **Globalt CLI-verktøy**: Kan installeres direkte i PATH med `uv tool install --editable .`.
 
 ---
 
