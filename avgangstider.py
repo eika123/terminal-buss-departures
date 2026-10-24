@@ -88,6 +88,10 @@ VAER_SYMBOLER = {
 class VaerObservasjon:
     temperatur_c: float
     vind_ms: float
+    vindkast_ms: float | None
+    vindretning_grader: float
+    vindretning_tekst: str
+    vind_pil: str
     symbol_kode: str
     beskrivelse: str
     symbol_emoji: str
@@ -109,6 +113,36 @@ class StoppestedData:
 # ==============================================================================
 # DISK-BASERT VÆR-CACHE OG MET-API
 # ==============================================================================
+def grader_til_vindretning(grader: float) -> tuple[str, str]:
+    """
+    Gjør om vindretning i grader (hvor vinden BLÅSER FRA) til kompassretning og pil.
+    Pilene peker i vindens blåseretning (dit vinden blåser):
+    - Nordavind (blåser fra nord sørover): Sørvendt pil ↓
+    - Sønnavind (blåser fra sør nordover): Nordvendt pil ↑
+    """
+    retninger = [
+        ("N", "↓"),
+        ("NNØ", "↙"),
+        ("NØ", "↙"),
+        ("ØNØ", "↙"),
+        ("Ø", "←"),
+        ("ØSØ", "↖"),
+        ("SØ", "↖"),
+        ("SSØ", "↖"),
+        ("S", "↑"),
+        ("SSV", "↗"),
+        ("SV", "↗"),
+        ("VSV", "↗"),
+        ("V", "→"),
+        ("VNV", "↘"),
+        ("NV", "↘"),
+        ("NNV", "↘"),
+    ]
+    # Hver av de 16 sektorene dekker 22.5 grader.
+    indeks = int((grader + 11.25) % 360 // 22.5)
+    return retninger[indeks]
+
+
 class VaerCache:
     """Håndterer lesing, skriving og caching av værdata til disk."""
 
@@ -117,7 +151,7 @@ class VaerCache:
         self._data: dict[str, dict[str, Any]] = self._last_fra_disk()
 
     def _last_fra_disk(self) -> dict[str, dict[str, Any]]:
-        if not self.cache_sti.exists():
+        if not self.cache_sti.is_file():
             return {}
         try:
             with open(self.cache_sti, "r", encoding="utf-8") as f:
@@ -158,6 +192,10 @@ class VaerCache:
         self._data[nokkel] = {
             "temperatur_c": vaer.temperatur_c,
             "vind_ms": vaer.vind_ms,
+            "vindkast_ms": vaer.vindkast_ms,
+            "vindretning_grader": vaer.vindretning_grader,
+            "vindretning_tekst": vaer.vindretning_tekst,
+            "vind_pil": vaer.vind_pil,
             "symbol_kode": vaer.symbol_kode,
             "beskrivelse": vaer.beskrivelse,
             "symbol_emoji": vaer.symbol_emoji,
@@ -212,6 +250,11 @@ def hent_vaer_fra_met(
         instant = now_timeseries["instant"]["details"]
         temp = instant.get("air_temperature", 0.0)
         vind = instant.get("wind_speed", 0.0)
+        vindkast_raw = instant.get("wind_speed_of_gust")
+        vindkast = float(vindkast_raw) if vindkast_raw is not None else None
+        vindretning = float(instant.get("wind_from_direction", 0.0))
+
+        vind_tekst, vind_pil = grader_til_vindretning(vindretning)
 
         next_1h = now_timeseries.get("next_1_hours") or now_timeseries.get("next_6_hours") or {}
         summary = next_1h.get("summary", {})
@@ -222,6 +265,10 @@ def hent_vaer_fra_met(
         observasjon = VaerObservasjon(
             temperatur_c=float(temp),
             vind_ms=float(vind),
+            vindkast_ms=vindkast,
+            vindretning_grader=vindretning,
+            vindretning_tekst=vind_tekst,
+            vind_pil=vind_pil,
             symbol_kode=raw_symbol,
             beskrivelse=beskrivelse,
             symbol_emoji=emoji,
@@ -244,6 +291,13 @@ def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, dict[str, str
     """
     if filsti is None:
         filsti = BASE_DIR / "stoppesteder.txt"
+
+    if not filsti.is_file():
+        print(f"Feil: Fant ikke stoppesteder-filen på: {filsti}")
+        print("Du må opprette filen 'stoppesteder.txt' og legge stoppestedene der.")
+        print("Se på 'stoppesteder_eksempel.txt' for hvordan filen skal se ut.")
+        print("Du kan finne stoppesteder på https://stoppesteder.entur.org")
+        sys.exit(1)
 
     profiler: dict[str, dict[str, str]] = {}
     aktiv_profil: str | None = None
@@ -286,11 +340,8 @@ def last_inn_stoppesteder(filsti: Path | None = None) -> dict[str, dict[str, str
             sys.exit(1)
 
         return profiler
-    except FileNotFoundError:
-        print(f"Fant ikke stoppesteder-filen på: {filsti}")
-        print("Du må opprette filen stoppesteder.txt og legge stoppestedene der.")
-        print("Se på stoppesteder_eksempel.txt hvordan filen skal se ut.")
-        print("Du kan finne stoppesteder på stoppesteder.entur.org")
+    except OSError as e:
+        print(f"Feil under lesing av {filsti}: {e}")
         sys.exit(1)
 
 
@@ -489,13 +540,28 @@ def hent_og_oppdater_avgangsinfo(
 # UTSKRIFT OG VISNING
 # ==============================================================================
 def formater_vaer_streng(vaer: VaerObservasjon | None) -> str:
-    """Formaterer vær-teksten for overskriften."""
+    """Formaterer vær-teksten for overskriften inkludert vindretning, grader og kastvind."""
     if not vaer:
         return ""
-    if TERM_MODE == TermStil.MODERNE:
-        return f" ({vaer.symbol_emoji} {vaer.temperatur_c:.0f}°C, {vaer.beskrivelse}, 💨 {vaer.vind_ms:.1f} m/s)"
+
+    # Vind-tekst med eventuelt kastvind (f.eks. "7.2 (12.4) m/s")
+    if vaer.vindkast_ms and vaer.vindkast_ms > vaer.vind_ms:
+        vind_tall = f"{vaer.vind_ms:.1f} ({vaer.vindkast_ms:.1f}) m/s"
     else:
-        return f" ({vaer.temperatur_c:.0f}C, {vaer.beskrivelse}, {vaer.vind_ms:.1f} m/s)"
+        vind_tall = f"{vaer.vind_ms:.1f} m/s"
+
+    grader_heltall = int(round(vaer.vindretning_grader))
+
+    if TERM_MODE == TermStil.MODERNE:
+        return (
+            f" ({vaer.symbol_emoji} {vaer.temperatur_c:.0f}°C, {vaer.beskrivelse}, "
+            f"💨 {vind_tall} {vaer.vind_pil} {vaer.vindretning_tekst} {grader_heltall}°)"
+        )
+    else:
+        return (
+            f" ({vaer.temperatur_c:.0f}C, {vaer.beskrivelse}, "
+            f"{vind_tall} {vaer.vindretning_tekst} {grader_heltall}deg)"
+        )
 
 
 def render_stoppested(alias_navn: str, tilstand: StoppestedData, terminal_width: int) -> None:
@@ -573,14 +639,24 @@ def render_stoppested(alias_navn: str, tilstand: StoppestedData, terminal_width:
 def main() -> None:
     global config
 
-    # 1. Last inn .env-konfigurasjon
-    config = dotenv_values(BASE_DIR / ".env")
-    if not config or "etClientName" not in config:
-        print(f"Fant ikke gyldig etClientName i {BASE_DIR / '.env'}")
-        print("Opprett en .env-fil i prosjektmappen basert på .env_example.")
+    # 1. Valider og last inn .env-konfigurasjon
+    env_sti = BASE_DIR / ".env"
+    if not env_sti.is_file():
+        print(f"Feil: Fant ikke konfigurasjonsfilen: {env_sti}")
+        print("Du må opprette en '.env'-fil i prosjektmappen basert på '.env_example'.")
+        print("Eksempel:")
+        print("  cp .env_example .env")
+        print('  echo \'etClientName="mittnavn-avgangstider-$(shuf -i 1000-9999 -n 1)"\' > .env')
         sys.exit(1)
 
-    # 2. Last inn stoppesteder og profiler
+    config = dotenv_values(env_sti)
+    if not config or "etClientName" not in config or not config["etClientName"]:
+        print(f"Feil: Mangler gyldig 'etClientName' i {env_sti}")
+        print("Filen må inneholde en unik identifikator på formen:")
+        print('etClientName="<company>-<application>"')
+        sys.exit(1)
+
+    # 2. Last inn stoppesteder og profiler (validerer også at stoppesteder.txt finnes)
     alle_profiler = last_inn_stoppesteder()
 
     # 3. Sett opp kommandolinjeargumenter
