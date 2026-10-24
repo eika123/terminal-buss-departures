@@ -110,6 +110,40 @@ def minutter_til_avgang(expected_iso_str: str) -> str:
     else:
         return f"{minutter_igjen} min"
 
+TRANSPORT_MODERNE = {
+    "bus": ("🚌", "Buss"),
+    "coach": ("🚌", "Buss"),
+    "tram": ("🚋", "Trikk"),
+    "rail": ("🚆", "Tog"),
+    "metro": ("🚇", "T-bane"),
+    "water": ("⛴️ ", "Båt"),
+    "ferry": ("⛴️ ", "Ferge"),
+    "air": ("✈️ ", "Fly"),
+}
+
+TRANSPORT_KLASSISK = {
+    "bus": "Buss",
+    "coach": "Buss",
+    "tram": "Trikk",
+    "rail": "Tog",
+    "metro": "T-bane",
+    "water": "Båt",
+    "ferry": "Ferge",
+    "air": "Fly",
+}
+
+def formater_transportmodus(transport_mode: str | None) -> str:
+    """Returnerer en formatering av transportmiddelet tilpasset valgt terminalstil."""
+    mode_key = (transport_mode or "").lower()
+    
+    match TERM_MODE:
+        case TermStil.MODERNE:
+            emoji, tekst = TRANSPORT_MODERNE.get(mode_key, ("🚏", mode_key.capitalize() or "Ukjent"))
+            return f"{emoji} {tekst:<6}"
+        case _:
+            tekst = TRANSPORT_KLASSISK.get(mode_key, mode_key.capitalize() or "Ukjent")
+            return f"{tekst:<6}"
+
 def formater_forsinkelse_moderne(forsinkelse_minutter: str) -> str:
     if forsinkelse_minutter > 0:
         return f"🔴 {forsinkelse_minutter} min forsinket"
@@ -241,7 +275,7 @@ def hent_avgangsinfo(stoppesteder: dict):
     responsedict = {}
 
     for stoppested, nsr_id in stoppesteder.items():
-        graphql_query = construct_stop_place_table_query_body(nsr_id, time_range=1800)
+        graphql_query = construct_stop_place_table_query_body(nsr_id, time_range=1800*3)
         response = debug_and_send_stop_place_query(graphql_query)
         responsedict[stoppested] = response
         api_stoppested_navn = response['data']['stopPlace']['name']
@@ -338,8 +372,9 @@ def main():
             if not estimated_calls: continue
             print(f"{f' {api_stoppested_navn} ':-^{total_bredde}}📍")
             for call in estimated_calls:
-                linje_nr = call["serviceJourney"]["journeyPattern"]["line"].get("publicCode")
-
+                line_info = call["serviceJourney"]["journeyPattern"]["line"]
+                linje_nr = line_info.get("publicCode") or "?"
+                modus_str = formater_transportmodus(line_info.get("transportMode"))
 
                 tid_til_forventet_avgang = minutter_til_avgang(call['expectedDepartureTime']) # f.eks. "5 min" eller "Nå"
 
@@ -352,10 +387,10 @@ def main():
                 forvented_avgang = iso_til_normaltid(forvented_avgang_iso)
 
                 if call['realtime']:
-                    print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_forventet_avgang:6}  {forvented_avgang} ({planlagt_avgang}) -- {forsinkelse:18}")
+                    print(f"{modus_str} {linje_nr:<5} {destinasjon:33}  {tid_til_forventet_avgang:6}  {forvented_avgang} ({planlagt_avgang}) -- {forsinkelse:18}")
                 else:
                     tid_til_planlagt_avgang = minutter_til_avgang(call['aimedDepartureTime']) # f.eks. "5 min" eller "Nå"
-                    print(f"linje: {linje_nr:4}: {destinasjon:35}  {tid_til_planlagt_avgang:6}  {planlagt_avgang} -- mangler sanntidsdata")
+                    print(f"{modus_str} {linje_nr:<5} {destinasjon:33}  {tid_til_planlagt_avgang:6}  {planlagt_avgang} -- mangler sanntidsdata")
         print("="*(total_bredde + 1))
         time.sleep(60)
 

@@ -4,10 +4,100 @@ Jernbanetorget = "NSR:StopPlace:58366"
 Stortorvet = "NSR:StopPlace:4160"
 
 # Egne seksjoner for steder du frekventerer
-[jobb]
-Nationaltheatret = "NSR:StopPlace:59872"
 
-[biblioteket]
+[uit]
+UiT = "NSR:StopPlace:52488"
+Breivika = "NSR:StopPlace:56073"
+
+
+[bibliotek-tromso]
+Vestregata = "NSR:StopPlace:64539"
+Torgsenteret = "NSR:StopPlace:52099"
+Wi-To = "NSR:StopPlace:53103"
+Fr. Langes gate = "NSR:StopPlace:55683"
+Petersborggata = "NSR:StopPlace:56592"
+Tromsø Prostneset hurtigbåtkai = "NSR:StopPlace:52279"
+Tromsø kystrutekai = "NSR:StopPlace:58054"
+Tromsø Prostneset = "NSR:StopPlace:52273"
+
+[tromso-panorama]
+Templarheimen = "NSR:StopPlace:56068"
+Rødhettestien = "NSR:StopPlace:61980"
+Veslefrikkvegen = "NSR:StopPlace:52870"
+Gjennomgangsbygget = "NSR:StopPlace:55907"
+UiT/Planetariet = "NSR:StopPlace:52491"
+Borgtunvegen = "NSR:StopPlace:55936"
+
+
+
+[alta-sentrum]
+Løkkeveien = "NSR:StopPlace:64236"
+Nordlyskatedralen = "NSR:StopPlace:61767"
+Granshagen = "NSR:StopPlace:57035"
+Kirkeveien = "NSR:StopPlace:57033"
+Thon Hotel Alta = "NSR:StopPlace:57044"
+Alta Helsesenter = "NSR:StopPlace:57087"
+Nyland = "NSR:StopPlace:63167"
+Uit Norges Arktiske Universiteet = "NSR:StopPlace:57046"
+
+
+[alta-kåfjord]
+Mánnáidriidi = "NSR:StopPlace:56853"
+Kåfjord = "NSR:StopPlace:61810"
+Haldde Montessoriskole = "NSR:StopPlace:57056"
+
+
+[oslo-s]
+Jernbanetorget = "NSR:StopPlace:58366"
+Stortorvet = "NSR:StopPlace:4160"
+Oslo S = "NSR:StopPlace:337"
+Dronningens gate = "NSR:StopPlace:4024"
+Dronningens gate = "NSR:StopPlace:61631"
+Dronningens gate = "NSR:StopPlace:59413"
+Kvadraturen = "NSR:StopPlace:4016"
+Oslo bussterminal = "NSR:StopPlace:6505"
+
+[blindern]
+Forskningsparken = "NSR:StopPlace:6342"
+Forskningsparken = "NSR:StopPlace:59600"
+Universitetet Blindern = "NSR:StopPlace:6340"
+Blindern = "NSR:StopPlace:6332"
+John Colletts plass = "NSR:StopPlace:58264"
+Frøensalléen = "NSR:StopPlace:6235"
+Frøen = "NSR:StopPlace:6233"
+
+[oslo-national]
+Nationaltheatret = "NSR:StopPlace:58404"
+Nationaltheatret stasjon = "NSR:StopPlace:288"
+Prof. Aschehougs plass = "NSR:StopPlace:4163"
+Historisk museum = "NSR:StopPlace:63281"
+Dronning Mauds gate = "NSR:StopPlace:4107"
+Aker brygge = "NSR:StopPlace:58382"
+Rådhusbrygge 3 = "NSR:StopPlace:58175"
+Kontrasskjæret = "NSR:StopPlace:4245"
+
+[oslo-deichman]
 Deichman = "NSR:StopPlace:58366"
+
+
+[oslo-kringsjå]
+Kringsjå = "NSR:StopPlace:59706"
+Sognsvann = "NSR:StopPlace:59705"
+Kongleveien = "NSR:StopPlace:6208"
+Holstein = "NSR:StopPlace:59765"
+Nordberghjemmet = "NSR:StopPlace:6203"
+
+
+
+[bergen-uib]
+Nygård = "NSR:StopPlace:58545"
+Florida = "NSR:StopPlace:58544"
+Thormøhlens gate = "NSR:StopPlace:30897"
+Møhlenpris = "NSR:StopPlace:30918"
+Lotheveien = "NSR:StopPlace:29176"
+Damsgårdsveien nr. 39 = "NSR:StopPlace:63608"
+
+
+
 
 
