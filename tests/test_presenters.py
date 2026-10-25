@@ -1,5 +1,6 @@
 import arrow
 
+from adapters.entur import default_entur_provider
 from models import DepartureData, NormalizedStopData, StopPlaceState, WeatherData
 from presenters import (
     DeparturePresenter,
@@ -106,7 +107,7 @@ def test_stop_place_presenter_render_normal(capsys):
         name="Klimavegen",
         raw_id="NSR:StopPlace:53434",
         clean_id="NSR:StopPlace:53434",
-        provider="entur",
+        provider=default_entur_provider,
         normalized_data=norm,
     )
 
@@ -123,11 +124,44 @@ def test_stop_place_presenter_render_error(capsys):
         name="Ukjent Stopp",
         raw_id="NSR:StopPlace:99999",
         clean_id="NSR:StopPlace:99999",
-        provider="entur",
+        provider=default_entur_provider,
         error_message="NOT_FOUND:Stop not found",
     )
 
     pres.render(state)
     captured = capsys.readouterr()
     assert "Fant ikke stoppested" in captured.out
+
+
+def test_stop_place_presenter_user_vs_normalized_name(capsys):
+    dep = DepartureData(
+        line_code="500",
+        transport_mode="bus",
+        destination="Itäkeskus",
+        aimed_iso=arrow.now().shift(minutes=+5).isoformat(),
+        expected_iso=arrow.now().shift(minutes=+5).isoformat(),
+        is_realtime=True,
+    )
+    norm = NormalizedStopData(name="Itäkeskus (M)", latitude=60.2, longitude=25.0, departures=[dep])
+    state = StopPlaceState(
+        name="Hjemme - Østgående",
+        raw_id="HSL:1020455",
+        clean_id="1020455",
+        provider=default_entur_provider,
+        normalized_data=norm,
+    )
+
+    # 1. When use_normalized_stop_names=True, official API name is shown
+    pres_norm = StopPlacePresenter(lang="no", use_normalized_stop_names=True)
+    pres_norm.render(state)
+    out_norm = capsys.readouterr().out
+    assert "Itäkeskus (M)" in out_norm
+    assert "Hjemme - Østgående" not in out_norm
+
+    # 2. When use_normalized_stop_names=False, user configured alias is preserved
+    pres_user = StopPlacePresenter(lang="no", use_normalized_stop_names=False)
+    pres_user.render(state)
+    out_user = capsys.readouterr().out
+    assert "Hjemme - Østgående" in out_user
+    assert "Itäkeskus (M)" not in out_user
 

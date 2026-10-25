@@ -57,9 +57,26 @@ UiT = "NSR:StopPlace:52488"
     profiles = load_stop_places(stops_file)
     assert "hjem" in profiles
     assert "jobb" in profiles
-    assert profiles["hjem"]["Klimavegen"] == "NSR:StopPlace:53434"
-    assert profiles["hjem"]["Jekta"] == "NSR:StopPlace:52971"
-    assert profiles["jobb"]["UiT"] == "NSR:StopPlace:52488"
+    assert profiles["hjem"].stops["Klimavegen"] == "NSR:StopPlace:53434"
+    assert profiles["hjem"].stops["Jekta"] == "NSR:StopPlace:52971"
+    assert profiles["jobb"].stops["UiT"] == "NSR:StopPlace:52488"
+    assert profiles["hjem"].use_normalized_names is None
+
+
+def test_load_stop_places_per_profile_options(tmp_path):
+    stops_file = tmp_path / "custom_stops.txt"
+    stops_file.write_text("""
+[hjem, use_normalized_names=false]
+Min Holdeplass = "NSR:StopPlace:53434"
+
+[jobb, use_normalized_names=true]
+Kontoret = "NSR:StopPlace:52488"
+""")
+    profiles = load_stop_places(stops_file)
+    assert profiles["hjem"].use_normalized_names is False
+    assert profiles["hjem"].stops["Min Holdeplass"] == "NSR:StopPlace:53434"
+    assert profiles["jobb"].use_normalized_names is True
+    assert profiles["jobb"].stops["Kontoret"] == "NSR:StopPlace:52488"
 
 
 def test_load_stop_places_missing_file(tmp_path):

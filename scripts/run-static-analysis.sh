@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure ~/.local/bin and ~/.cargo/bin are in PATH if uv is located there
+if ! command -v uv &> /dev/null; then
+    for cand in "${HOME}/.local/bin" "${HOME}/.cargo/bin"; do
+        if [ -x "${cand}/uv" ]; then
+            if [[ ":$PATH:" != *":$cand:"* ]]; then
+                export PATH="${cand}:${PATH}"
+            fi
+            break
+        fi
+    done
+fi
+
 # Output directory for analysis artifacts
 OUT_DIR="static-analysis"
 mkdir -p "${OUT_DIR}"
@@ -37,7 +49,12 @@ echo "    pyflakes: clean (0 issues)"
 echo "--> Checking with ruff..."
 uv run ruff check .
 
-# 3. Bandit security analysis
+# 3. Pyright static type checker
+echo "--> Checking static types with pyright..."
+uv run pyright
+echo "    pyright: 0 errors"
+
+# 4. Bandit security analysis
 echo "--> Checking code security with bandit..."
 uv run bandit -r *.py adapters -s B404 --quiet
 echo "    bandit: clean? ...(0 security issues detected in scan)"

@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from adapters.entur import default_entur_provider
 from models import DepartureData, NormalizedStopData, StopPlaceState, WeatherData
 
 
@@ -62,9 +63,10 @@ def test_stop_place_state():
         name="Klimavegen",
         raw_id="NSR:StopPlace:53434",
         clean_id="NSR:StopPlace:53434",
-        provider="entur",
+        provider=default_entur_provider,
     )
     assert state.name == "Klimavegen"
+    assert state.provider.provider_id == "entur"
     assert state.normalized_data is None
     assert state.weather is None
 

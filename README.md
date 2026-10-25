@@ -215,10 +215,44 @@ To run the static analysis pipeline independently:
 
 Included tools:
 - **[Ruff](https://astral.sh/ruff)**: Fast code linting and style formatting.
+- **[Pyright](https://github.com/microsoft/pyright)**: Strict static type checking across models, protocols, and adapters.
 - **[Pyflakes](https://pypi.org/project/pyflakes/)**: Fast logical analysis (detects unused imports, undefined variables, and scope errors).
 - **[Bandit](https://bandit.readthedocs.io/)**: Security scanner that detects leaked secrets, hardcoded credentials, and unsafe function invocations.
 - **[Pydeps](https://github.com/thebjorn/pydeps)**: Dependency graph verification and cycle detection (verifies that the architecture is a clean DAG). Generates `static-analysis/dependencies.svg` and `static-analysis/dependencies.json` when invoked with `--doc`.
-- **[Pytest](https://docs.pytest.org/)**: Unit test suite (`uv run pytest -v`).
+- **[Pytest](https://docs.pytest.org/)**: Unit, contract, and resilience test suite (`uv run pytest -v`).
+
+### API Contract Testing & Recording (VCR.py)
+
+To guard against unexpected breaking changes from upstream GraphQL and REST APIs (Entur, Digitransit, MET Norway), the test suite includes contract tests recorded with `pytest-recording` (`vcrpy`):
+
+- **Offline Replay by Default**: Everyday runs (`./scripts/run-tests.sh`) replay from recorded cassettes under `tests/cassettes/` in milliseconds without making real network calls.
+- **Credential Scrubbing**: Sensitive headers (`ET-Client-Name`, `digitransit-subscription-key`, `User-Agent`) are automatically replaced with dummy placeholders (`DUMMY_...`) so cassettes can be safely committed to git.
+- **7-Day TTL (Time-To-Live)**: Cassettes are configured with a 7-day re-record interval (`604800` seconds).
+- **Manual Recording Refresh**: To force-refresh and re-record all cassettes against live API endpoints:
+  ```bash
+  ./scripts/run-tests.sh --record
+  ```
+
+#### Scheduled Weekly Refresh (Cron Job)
+
+If you wish to automatically verify API contracts and refresh cassettes on a weekly schedule, you can set up a user cron job:
+
+```bash
+# Open crontab editor
+crontab -e
+
+# Run tests and re-record weekly every Monday at 06:00 AM:
+0 6 * * 1 cd /path/to/avgangstider-entur-python && ./scripts/run-tests.sh --record >> /tmp/avgangstider-contract-tests.log 2>&1
+```
+
+### Chaos & Network Resilience Testing
+
+The application is engineered to stay responsive under flaky Wi-Fi and API hiccups:
+- **Automatic Retries**: `create_resilient_session()` configures exponential backoff with `urllib3.util.Retry` across transient HTTP status codes (`429`, `500`, `502`, `503`, `504`).
+- **Consecutive Failure Tracking**: `ConsecutiveFailureTracker` tolerates intermittent dropped frames, but terminates gracefully after 10 consecutive failures to prevent runaway daemon loops.
+- **Offline Cache Preservation**: If network connectivity drops while the board is running, cached departures are preserved on-screen alongside a discrete `📡` offline badge and the last successful sync timestamp.
+
+Resilience and chaos scenarios are verified automatically in `tests/test_resilience.py`.
 
 ---
 

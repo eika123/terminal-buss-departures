@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
 import arrow
 import requests
@@ -12,7 +12,7 @@ from config import (
     WEATHER_CACHE_FILE,
     ConfigError,
 )
-from models import WeatherData
+from models import WeatherData, WeatherProvider
 from resilience import ConsecutiveFailureTracker
 
 logger = logging.getLogger("avgangstider.weather")
@@ -72,20 +72,6 @@ class WeatherCache:
         key = self._make_key(lat, lon)
         self._data[key] = weather.model_dump()
         self._save_to_disk()
-
-
-class WeatherProvider(Protocol):
-    """Protocol for fetching weather data from a weather service provider."""
-
-    def fetch_weather(
-        self,
-        session: requests.Session,
-        lat: float,
-        lon: float,
-        app_config: dict[str, Any],
-    ) -> WeatherData | None:
-        """Fetch raw weather data for specified coordinates."""
-        ...
 
 
 class MetWeatherAdapter:

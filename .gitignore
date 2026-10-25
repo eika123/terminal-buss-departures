@@ -8,3 +8,5 @@ avgangstider.log
 build
 static-analysis/
 *.svg
+tests/cassettes/
+
