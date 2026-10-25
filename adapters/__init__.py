@@ -7,9 +7,21 @@ import requests
 
 from adapters.digitransit import fetch_digitransit_stop
 from adapters.entur import fetch_entur_stop
-from config import ConfigError, DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL
+from config import DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL, ConfigError
 from models import StopPlaceState
+from resilience import ConsecutiveFailureTracker
 from weather import fetch_weather_from_met
+
+logger = logging.getLogger("avgangstider.adapters")
+
+# Per-stop failure trackers to allow intermittent failures but crash if a stop fails 10 consecutive times
+_stop_failure_trackers: dict[str, ConsecutiveFailureTracker] = {}
+
+
+def get_stop_tracker(stop_key: str) -> ConsecutiveFailureTracker:
+    if stop_key not in _stop_failure_trackers:
+        _stop_failure_trackers[stop_key] = ConsecutiveFailureTracker(name=f"stop_{stop_key}", max_failures=10)
+    return _stop_failure_trackers[stop_key]
 
 
 def detect_provider(raw_id: str) -> tuple[str, str]:
@@ -55,7 +67,7 @@ def detect_provider(raw_id: str) -> tuple[str, str]:
 
     if id_lower.startswith("74") and len(id_lower) == 9 and id_lower.isdigit():
         return "resrobot", cleaned
-    if (id_lower.startswith("0086") or id_lower.startswith("86")) and id_lower.isdigit():
+    if id_lower.startswith(("0086", "86")) and id_lower.isdigit():
         return "rejseplanen", cleaned
 
     return "entur", cleaned
@@ -87,6 +99,7 @@ def fetch_and_update_departures(
             state.normalized_data = norm
             state.error_message = None
             state.last_updated_iso = arrow.now().isoformat()
+            get_stop_tracker(alias_name).record_success()
 
             if norm.latitude is not None and norm.longitude is not None:
                 state.weather = fetch_weather_from_met(session, norm.latitude, norm.longitude, app_config)
@@ -96,11 +109,11 @@ def fetch_and_update_departures(
             sys.exit(1)
         except LookupError as le:
             state.error_message = f"NOT_FOUND:{le}"
-            logging.warning("Stop lookup error for %s (%s, %s): %s", alias_name, state.clean_id, state.provider, le)
+            get_stop_tracker(alias_name).record_failure(le)
         except requests.RequestException as re:
             state.error_message = f"NETWORK:{re}"
-            logging.warning("Network error for %s (%s, %s): %s", alias_name, state.clean_id, state.provider, re)
-        except (ValueError, Exception) as e:
+            get_stop_tracker(alias_name).record_failure(re)
+        except (ValueError, KeyError, TypeError) as e:
             state.error_message = f"API_ERROR:{e}"
-            logging.warning("API error for %s (%s, %s): %s", alias_name, state.clean_id, state.provider, e)
+            get_stop_tracker(alias_name).record_failure(e)
 

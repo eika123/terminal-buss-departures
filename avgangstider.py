@@ -7,14 +7,14 @@ from models import DepartureData, NormalizedStopData, StopPlaceState, WeatherDat
 from presenters import DeparturePresenter, StopPlacePresenter, WeatherPresenter
 
 __all__ = [
-    "main",
-    "WeatherData",
     "DepartureData",
-    "NormalizedStopData",
-    "StopPlaceState",
     "DeparturePresenter",
-    "WeatherPresenter",
+    "NormalizedStopData",
     "StopPlacePresenter",
+    "StopPlaceState",
+    "WeatherData",
+    "WeatherPresenter",
+    "main",
 ]
 
 if __name__ == "__main__":

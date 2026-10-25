@@ -1,5 +1,3 @@
-from typing import Any
-
 import arrow
 
 from config import DEFAULT_TERMINAL_WIDTH, TerminalStyle
@@ -161,7 +159,7 @@ class WeatherPresenter:
         else:
             wind_str = f"{weather.wind_ms:.1f} m/s"
 
-        degrees_int = int(round(weather.wind_direction_degrees))
+        degrees_int = round(weather.wind_direction_degrees)
 
         if self.style == TerminalStyle.MODERN:
             return (

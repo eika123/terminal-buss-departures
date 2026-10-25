@@ -1,10 +1,8 @@
 import logging
 import os
-from pathlib import Path
 import sys
-from typing import Any
+from pathlib import Path
 
-from dotenv import dotenv_values
 from i18n import translate_international_message
 
 
@@ -29,11 +27,11 @@ DEFAULT_TERMINAL_WIDTH = 95
 REQUEST_TIMEOUT_SECONDS = 10
 WEATHER_CACHE_DURATION_SECONDS = 1800  # 30 minutes cache for weather
 
+MET_LOCATIONFORECAST_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 ENTUR_GRAPHQL_URL = "https://api.entur.io/journey-planner/v3/graphql"
+
 DIGITRANSIT_HSL_URL = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1"
 DIGITRANSIT_FINLAND_URL = "https://api.digitransit.fi/routing/v2/finland/gtfs/v1"
-MET_LOCATIONFORECAST_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
-
 
 def get_xdg_config_dir() -> Path:
     """Returns ~/.config/avgangstider or $XDG_CONFIG_HOME/avgangstider."""
@@ -61,10 +59,12 @@ LOG_FILE = CACHE_DIR / "avgangstider.log"
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.WARNING,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     encoding="utf-8",
 )
+
+logger = logging.getLogger("avgangstider.config")
 
 
 def resolve_config_and_stops_files(
@@ -89,7 +89,8 @@ def resolve_config_and_stops_files(
             if 'name = "avgangstider-entur-python"' in content:
                 is_local_dev = True
         except Exception:
-            pass
+            print("error when looking for config file")
+            raise
 
     if is_local_dev and (cwd / ".env").is_file() and (cwd / "stoppesteder.txt").is_file():
         env_file = Path(custom_env) if custom_env else cwd / ".env"
@@ -160,7 +161,7 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, dict
 
         return profiles
     except OSError as e:
-        logging.error("Failed to read stop places file: %s", e)
+        logger.error("Failed to read stop places file: %s", e)
         print(translate_international_message("err_reading_file", lang=lang, path=file_path, err=e))
         sys.exit(1)
 

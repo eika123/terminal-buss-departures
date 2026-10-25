@@ -7,20 +7,26 @@ import arrow
 import requests
 
 from config import (
-    ConfigError,
     MET_LOCATIONFORECAST_URL,
     REQUEST_TIMEOUT_SECONDS,
     WEATHER_CACHE_DURATION_SECONDS,
     WEATHER_CACHE_FILE,
+    ConfigError,
 )
 from models import WeatherData
+from resilience import ConsecutiveFailureTracker
+
+logger = logging.getLogger("avgangstider.weather")
+
+# Per-request tracker for live MET Norway API calls
+met_api_tracker = ConsecutiveFailureTracker(name="met_weather_api", max_failures=10)
 
 
 class WeatherCache:
     """Handles reading, writing and caching raw weather forecasts on disk."""
-
-    def __init__(self, cache_path: Path = WEATHER_CACHE_FILE):
+    def __init__(self, cache_path: Path = WEATHER_CACHE_FILE, max_failures: int = 10):
         self.cache_path = cache_path
+        self.tracker = ConsecutiveFailureTracker(name="weather_cache", max_failures=max_failures)
         self._data: dict[str, dict[str, Any]] = self._load_from_disk()
 
     def _load_from_disk(self) -> dict[str, dict[str, Any]]:
@@ -28,17 +34,20 @@ class WeatherCache:
             return {}
         try:
             with open(self.cache_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            logging.warning("Failed to read weather cache: %s", e)
+                retval = json.load(f)
+                self.tracker.record_success()
+                return retval
+        except (OSError, json.JSONDecodeError, KeyError) as e:
+            self.tracker.record_failure(e)
             return {}
 
     def _save_to_disk(self) -> None:
         try:
             with open(self.cache_path, "w", encoding="utf-8") as f:
                 json.dump(self._data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logging.warning(f"Failed to save weather cache: {e}")
+                self.tracker.record_success()
+        except OSError as e:
+            self.tracker.record_failure(e)
 
     @staticmethod
     def _make_key(lat: float, lon: float) -> str:
@@ -55,8 +64,11 @@ class WeatherCache:
             age_seconds = (arrow.now() - fetched_time).total_seconds()
             if age_seconds > WEATHER_CACHE_DURATION_SECONDS:
                 return None
-            return WeatherData.model_validate(entry)
-        except Exception:
+            retval = WeatherData.model_validate(entry)
+            self.tracker.record_success()
+            return retval
+        except (ValueError, KeyError, TypeError) as e:
+            self.tracker.record_failure(e)
             return None
 
     def save_weather(self, lat: float, lon: float, weather: WeatherData) -> None:
@@ -102,7 +114,7 @@ def fetch_weather_from_met(
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         if res.status_code != 200:
-            logging.warning("MET API returned HTTP %s for lat=%s lon=%s", res.status_code, lat, lon)
+            logger.warning("MET API returned HTTP %s for lat=%s lon=%s", res.status_code, lat, lon)
             return None
 
         body = res.json()
@@ -128,8 +140,11 @@ def fetch_weather_from_met(
         )
 
         weather_cache.save_weather(lat, lon, observation)
+        met_api_tracker.record_success()
         return observation
-    except Exception as e:
-        logging.warning("Error fetching weather: %s", e)
+    except ConfigError:
+        raise
+    except (requests.RequestException, ValueError, KeyError) as e:
+        met_api_tracker.record_failure(e)
         return None
 

@@ -2,10 +2,8 @@ import argparse
 import subprocess
 import sys
 import time
-from typing import Any
 
 from dotenv import dotenv_values
-import requests
 
 from adapters import detect_provider, fetch_and_update_departures
 from config import (
@@ -13,14 +11,15 @@ from config import (
     DEFAULT_REFRESH_INTERVAL_SECONDS,
     DEFAULT_TERMINAL_WIDTH,
     DEFAULT_TIME_RANGE_SECONDS,
+    TerminalStyle,
     get_xdg_config_dir,
     load_stop_places,
     resolve_config_and_stops_files,
-    TerminalStyle,
 )
 from i18n import DEFAULT_LANGUAGE, TRANSLATIONS, translate_international_message
 from models import StopPlaceState
 from presenters import StopPlacePresenter
+from resilience import MaxConsecutiveFailuresExceeded, create_resilient_session
 
 
 def clear_terminal() -> None:
@@ -28,7 +27,8 @@ def clear_terminal() -> None:
     try:
         subprocess.run([command], check=True)
     except Exception:
-        pass
+        print("Unexpected error while clering terminal")
+        raise
 
 
 def parse_arguments(all_profiles: dict[str, dict[str, str]] | None = None) -> argparse.Namespace:
@@ -178,7 +178,7 @@ def main() -> None:
             provider=prov,
         )
 
-    session = requests.Session()
+    session = create_resilient_session(retries=3, backoff_factor=0.5)
     clear_terminal()
 
     # 6. Initialize presenter
@@ -207,6 +207,9 @@ def main() -> None:
 
             print("=" * (DEFAULT_TERMINAL_WIDTH + 1))
             time.sleep(args.intervall)
+    except MaxConsecutiveFailuresExceeded as mcfe:
+        print(f"\n{mcfe}")
+        sys.exit(1)
     except KeyboardInterrupt:
         print(f"\n{translate_international_message('exiting', lang=active_lang)}")
         sys.exit(0)

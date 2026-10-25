@@ -5,7 +5,11 @@ from typing import Any
 import arrow
 import requests
 
-from config import ConfigError, DIGITRANSIT_HSL_URL, REQUEST_TIMEOUT_SECONDS
+from config import (
+    DIGITRANSIT_HSL_URL,
+    REQUEST_TIMEOUT_SECONDS,
+    ConfigError,
+)
 from models import DepartureData, NormalizedStopData
 
 
@@ -48,7 +52,9 @@ def fetch_digitransit_stop(
     }
     """
     headers = {"Content-Type": "application/json"}
-    sub_key = app_config.get("DIGITRANSIT_SUBSCRIPTION_KEY") or app_config.get("digitransitSubscriptionKey")
+    sub_key = app_config.get("DIGITRANSIT_SUBSCRIPTION_KEY") or app_config.get(
+        "digitransitSubscriptionKey"
+    )
     if not sub_key or not str(sub_key).strip():
         raise ConfigError(
             "Missing required config 'DIGITRANSIT_SUBSCRIPTION_KEY' in .env for Finland (Digitransit).\n"
@@ -74,7 +80,9 @@ def fetch_digitransit_stop(
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
     if res.status_code != 200:
-        raise requests.HTTPError(f"Digitransit HTTP {res.status_code}: {res.text[:100]}")
+        raise requests.HTTPError(
+            f"Digitransit HTTP {res.status_code}: {res.text[:100]}"
+        )
 
     data = res.json()
     if "errors" in data and not data.get("data"):
@@ -88,7 +96,9 @@ def fetch_digitransit_stop(
         or data_dict.get("station2")
     )
     if not stop_data:
-        raise LookupError(f"Stop not found in Digitransit (tested '{id_with_prefix}' and '{bare_id}')")
+        raise LookupError(
+            f"Stop not found in Digitransit (tested '{id_with_prefix}' and '{bare_id}')"
+        )
 
     departures: list[DepartureData] = []
     mode_map = {
@@ -133,4 +143,3 @@ def fetch_digitransit_stop(
         longitude=float(lon) if lon is not None else None,
         departures=departures,
     )
-

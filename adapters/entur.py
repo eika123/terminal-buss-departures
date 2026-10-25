@@ -1,10 +1,10 @@
-from string import Template
 import textwrap
+from string import Template
 from typing import Any
 
 import requests
 
-from config import ConfigError, ENTUR_GRAPHQL_URL, REQUEST_TIMEOUT_SECONDS
+from config import ENTUR_GRAPHQL_URL, REQUEST_TIMEOUT_SECONDS, ConfigError
 from models import DepartureData, NormalizedStopData
 
 
