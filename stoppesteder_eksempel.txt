@@ -9,7 +9,6 @@ Stortorvet = "NSR:StopPlace:4160"
 UiT = "NSR:StopPlace:52488"
 Breivika = "NSR:StopPlace:56073"
 
-
 [bibliotek-tromso]
 Vestregata = "NSR:StopPlace:64539"
 Torgsenteret = "NSR:StopPlace:52099"
@@ -28,8 +27,6 @@ Gjennomgangsbygget = "NSR:StopPlace:55907"
 UiT/Planetariet = "NSR:StopPlace:52491"
 Borgtunvegen = "NSR:StopPlace:55936"
 
-
-
 [alta-sentrum]
 Løkkeveien = "NSR:StopPlace:64236"
 Nordlyskatedralen = "NSR:StopPlace:61767"
@@ -40,12 +37,10 @@ Alta Helsesenter = "NSR:StopPlace:57087"
 Nyland = "NSR:StopPlace:63167"
 Uit Norges Arktiske Universiteet = "NSR:StopPlace:57046"
 
-
 [alta-kåfjord]
 Mánnáidriidi = "NSR:StopPlace:56853"
 Kåfjord = "NSR:StopPlace:61810"
 Haldde Montessoriskole = "NSR:StopPlace:57056"
-
 
 [oslo-s]
 Jernbanetorget = "NSR:StopPlace:58366"
@@ -79,15 +74,12 @@ Kontrasskjæret = "NSR:StopPlace:4245"
 [oslo-deichman]
 Deichman = "NSR:StopPlace:58366"
 
-
 [oslo-kringsjå]
 Kringsjå = "NSR:StopPlace:59706"
 Sognsvann = "NSR:StopPlace:59705"
 Kongleveien = "NSR:StopPlace:6208"
 Holstein = "NSR:StopPlace:59765"
 Nordberghjemmet = "NSR:StopPlace:6203"
-
-
 
 [bergen-uib]
 Nygård = "NSR:StopPlace:58545"
@@ -98,9 +90,6 @@ Lotheveien = "NSR:StopPlace:29176"
 Damsgårdsveien nr. 39 = "NSR:StopPlace:63608"
 
 # Eksempler på stoppesteder i nabolandene (Digitransit, Trafiklab, Rejseplanen)
-[helsinki]
-Rautatientori = "HSL:1040101"
-Kamppi = "HSL:1020455"
 
 [stockholm]
 T-Centralen = "740000001"
@@ -108,8 +97,42 @@ T-Centralen = "740000001"
 [kobenhavn]
 København H = "008600611"
 
+[helsinki-keskusta]
+Kamppi metro = "FI:1020455"
+Rautatientori = "FI:1020401"
+Kallio Karhupuisto = "FI:1130433"
+Helsinin yliopiston metroasema = "FI:1000104"
 
+[helsinki-rautatieasema-junat]
+Päärautatieasema = "FI:1000201"
+Helsinki = "FI:1020501"
+Helsinki-paikallisjunat1 = "FI:1020502"
+Helsinki-paikallisjunat2 = "FI:1020503"
 
+[helsinki-rautatieasema]
+Elielinauko = "FI:1000002"
+Rautatientorin metorasema = "FI:1000103"
+Rautatientori = "FI:1000003"
+Päärautatieasema L = "FI:1020453"
+Päärautatieasema I = "FI:1020454"
+Lasipalatsi P = "FI:1020444"
+Lasipalatsi E = "FI:1020443"
+Postitalo = "FI:1020171"
+Ylioppilastalo I = "FI:1020447"
+Ylioppilastalo L = "FI:1020446"
 
+[kallio]
+Sörnäisten metroasema = "FI:1000106"
+Kallio Karhupuisto = "FI:1130433"
+Kalasataman metroasema = "FI:1000107"
+Hakaniemen metroasema = "FI:1000105"
+Hakaniemi = "FI:1000012"
 
-
+[kalasatama]
+Kalasataman metroasema = "FI:1000107"
+Kalsatama (M) bussi = "FI:1100131"
+Kalasatama (M) bussi = "FI:1100132"
+Kalasatama / Itäväylä I = "FI:1100110"
+Kalasatama / Itäväylä L = "FI:1100109"
+Kalsatama / Leonkatu P = "FI:1100416"
+Kalsatama / Leonkatu E = "FI:1100417"
