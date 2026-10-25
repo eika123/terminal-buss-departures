@@ -9,7 +9,7 @@ cd "${ROOT_DIR}"
 echo "=================================================="
 echo "Step 1/2: Running Static Analysis"
 echo "=================================================="
-"${SCRIPT_DIR}/run_static_analysis.sh" "$@"
+"${SCRIPT_DIR}/run-static-analysis.sh" "$@"
 
 echo ""
 echo "=================================================="
