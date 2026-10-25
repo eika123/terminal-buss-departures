@@ -1,6 +1,6 @@
 import arrow
 
-from config import DEFAULT_TERMINAL_WIDTH, TerminalStyle
+from config import DEFAULT_TERMINAL_WIDTH, DESTINATION_MAX_WIDTH, TerminalStyle
 from i18n import (
     DEFAULT_LANGUAGE,
     TRANSPORT_EMOJIS,
@@ -89,22 +89,26 @@ class DeparturePresenter:
             delay = self.format_delay(dep.aimed_iso, dep.expected_iso)
 
             if dep.is_realtime:
-                return (
-                    f"{mode_str} {line_code:<5} {destination:33}  "
-                    f"{time_left:6}  {expected_clock} ({aimed_clock}) -- {delay:18}"
-                )
+                exp_str = f"{expected_clock:<5}"
+                aim_str = f"({aimed_clock})"
+                status_str = f"   {delay}"
             else:
-                scheduled_time_left = self.minutes_until_departure(dep.aimed_iso)
-                return (
-                    f"{mode_str} {line_code:<5} {destination:33}  "
-                    f"{scheduled_time_left:6}  {aimed_clock} -- {translate_international_message('no_realtime', lang=self.lang)}"
-                )
+                exp_str = " "*5
+                aim_str = f"({aimed_clock})"
+                status_str = f"   {translate_international_message("no_realtime", lang=self.lang)}"
+                time_left = self.minutes_until_departure(dep.aimed_iso)
+
+            dest_display = destination[:(DESTINATION_MAX_WIDTH-1)]
+            return (
+                f"{mode_str} {line_code:<5} {dest_display:<{DESTINATION_MAX_WIDTH}}  "
+                f"{time_left:>7}  {exp_str} {aim_str} {status_str}"
+            )
         else:
             clock_lbl = translate_international_message("clock", lang=self.lang)
             sched_lbl = translate_international_message("scheduled", lang=self.lang)
             off_tag = translate_international_message("offline_tag", lang=self.lang)
             return (
-                f"{mode_str} {line_code:<5} {destination:33}  "
+                f"{mode_str} {line_code:<5} {destination:{DESTINATION_MAX_WIDTH}}  "
                 f"{clock_lbl}: {expected_clock} ({sched_lbl}: {aimed_clock}) [{off_tag}]"
             )
 
@@ -188,18 +192,9 @@ class StopPlacePresenter:
         self.dep_presenter = DeparturePresenter(lang=lang, style=style)
         self.weather_presenter = WeatherPresenter(lang=lang, style=style)
 
-    def render(self, state: StopPlaceState) -> None:
-        has_fresh_data = state.error_message is None and state.normalized_data is not None
-        norm = state.normalized_data
 
-        display_name = norm.name if norm and norm.name else state.name
-        weather_text = self.weather_presenter.format_header(state.weather)
-
-        yr_url: str | None = None
-        if norm and norm.latitude is not None and norm.longitude is not None:
-            yr_url = f"https://www.yr.no/nb/værvarsel/daglig-tabell/{norm.latitude:.4f},{norm.longitude:.4f}"
-
-        if yr_url and self.style == TerminalStyle.MODERN:
+    def print_weather_header_msg(self, yr_url, display_name, weather_text) -> None:
+        if yr_url and weather_text and self.style == TerminalStyle.MODERN:
             linked_name = make_terminal_hyperlink(yr_url, display_name)
             linked_pin = make_terminal_hyperlink(yr_url, "📍")
             visible_length = len(f" {display_name}{weather_text} ")
@@ -211,32 +206,59 @@ class StopPlacePresenter:
             header_text = f" {display_name}{weather_text} "
             print(f"{header_text:-^{self.terminal_width}}📍")
 
-        if state.error_message:
-            yellow = "\033[93m" if self.style != TerminalStyle.CLASSIC else ""
-            reset = "\033[0m" if self.style != TerminalStyle.CLASSIC else ""
+    def render_error_message(self, state: StopPlaceState, display_name: str) -> bool:
+        """
+        Renders warning or error details when state.error_message is set.
+        Returns True if rendering should stop (fatal error / no cached data),
+        or False if cached departure rows can still be shown.
+        """
+        if not state.error_message:
+            return False
 
-            if state.error_message.startswith("NOT_FOUND:"):
-                icon = "❓" if self.style != TerminalStyle.CLASSIC else "[?]"
-                err_msg = translate_international_message(
-                    "stop_not_found", lang=self.lang, id=state.clean_id, provider=state.provider
-                )
-                print(f" {yellow}{icon} {err_msg}{reset}")
-                return
-            elif state.error_message.startswith("API_ERROR:"):
-                icon = "⚠️" if self.style != TerminalStyle.CLASSIC else "[!]"
-                detalj = state.error_message.split(":", 1)[1]
-                print(f" {yellow}{icon} API feil ({state.provider}): {detalj[:80]}{reset}")
-                return
-            elif state.normalized_data and state.last_updated_iso:
-                last_time = arrow.get(state.last_updated_iso).format("HH:mm:ss")
-                icon = "📡" if self.style != TerminalStyle.CLASSIC else "[!]"
-                warn_msg = translate_international_message("offline_warn", lang=self.lang, time=last_time)
-                print(f" {yellow}{icon} {warn_msg}{reset}")
-            else:
-                icon = "📡" if self.style != TerminalStyle.CLASSIC else "[X]"
-                err_msg = translate_international_message("offline_err", lang=self.lang, name=display_name)
-                print(f" {icon} {err_msg}")
-                return
+        yellow = "\033[93m" if self.style != TerminalStyle.CLASSIC else ""
+        reset = "\033[0m" if self.style != TerminalStyle.CLASSIC else ""
+
+        if state.error_message.startswith("NOT_FOUND:"):
+            icon = "❓" if self.style != TerminalStyle.CLASSIC else "[?]"
+            err_msg = translate_international_message(
+                "stop_not_found", lang=self.lang, id=state.clean_id, provider=state.provider
+            )
+            print(f" {yellow}{icon} {err_msg}{reset}")
+            return True
+
+        if state.error_message.startswith("API_ERROR:"):
+            icon = "⚠️" if self.style != TerminalStyle.CLASSIC else "[!]"
+            detalj = state.error_message.split(":", 1)[1]
+            print(f" {yellow}{icon} API feil ({state.provider}): {detalj[:80]}{reset}")
+            return True
+
+        if state.normalized_data and state.last_updated_iso:
+            last_time = arrow.get(state.last_updated_iso).format("HH:mm:ss")
+            icon = "📡" if self.style != TerminalStyle.CLASSIC else "[!]"
+            warn_msg = translate_international_message("offline_warn", lang=self.lang, time=last_time)
+            print(f" {yellow}{icon} {warn_msg}{reset}")
+            return False
+
+        icon = "📡" if self.style != TerminalStyle.CLASSIC else "[X]"
+        err_msg = translate_international_message("offline_err", lang=self.lang, name=display_name)
+        print(f" {icon} {err_msg}")
+        return True
+
+    def render(self, state: StopPlaceState) -> None:
+        has_fresh_data = state.error_message is None and state.normalized_data is not None
+
+        norm = state.normalized_data
+        display_name = norm.name if norm and norm.name else state.name
+        weather_text = self.weather_presenter.format_header(state.weather)
+
+        yr_url: str | None = None
+        if norm and norm.latitude is not None and norm.longitude is not None:
+            yr_url = f"https://www.yr.no/nb/værvarsel/daglig-tabell/{norm.latitude:.4f},{norm.longitude:.4f}"
+
+        self.print_weather_header_msg(yr_url, display_name, weather_text)
+
+        if self.render_error_message(state, display_name):
+            return
 
         if not norm:
             print(f"  {translate_international_message('no_data', lang=self.lang)}")

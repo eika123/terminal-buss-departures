@@ -1,0 +1,49 @@
+# ==============================================================================
+# Configuration file for Nordic Transit Departure Board (avgangstider)
+# Non-secret application display, timing, and query settings.
+# ==============================================================================
+
+[display]
+# Maximum character width reserved for destination names in departure tables.
+# Destination names exceeding this width are truncated so that departure time
+# columns remain consistently aligned vertically.
+destination_max_width = 28
+
+# Total character width for stop headers and divider lines.
+terminal_width = 95
+
+# Terminal presentation style:
+# - "modern": Colors and transport/weather emojis (default)
+# - "classic": Plain ASCII text without colors or emojis
+# - "fancy": Extended styling
+terminal_style = "modern"
+
+# Default interface language ("no", "sv", "fi", "en").
+# Can be overridden via the command-line flag --lang <lang>.
+language = "no"
+
+[query]
+# Lookahead time window for upcoming departures in seconds.
+# 5400 seconds = 90 minutes (1.5 hours) ahead.
+# Can be overridden via the command-line flag --timerange <seconds>.
+time_range_seconds = 5400
+
+# Maximum number of departures displayed per stop place.
+# Can be overridden via the command-line flag --antall <count>.
+departures_count = 10
+
+# Display refresh interval in seconds.
+# Can be overridden via the command-line flag --intervall <seconds>.
+refresh_interval_seconds = 60
+
+[cache]
+# Duration in seconds to cache weather observations from MET Norway on disk.
+# 1800 seconds = 30 minutes (recommended by MET to prevent excessive server load).
+weather_cache_duration_seconds = 1800
+
+[network]
+# Timeout for outgoing HTTP and GraphQL requests in seconds.
+request_timeout_seconds = 10
+
+# Maximum consecutive failures before the application terminates cleanly.
+max_consecutive_failures = 10

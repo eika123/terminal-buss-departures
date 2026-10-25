@@ -1,7 +1,9 @@
 import logging
 import os
 import sys
+import tomllib
 from pathlib import Path
+from typing import Any
 
 from i18n import translate_international_message
 
@@ -15,23 +17,27 @@ class ConfigError(Exception):
 
 
 class TerminalStyle:
-    MODERN = "moderne"
+    MODERN = "modern"
     FANCY = "fancy"
-    CLASSIC = "klassisk"
+    CLASSIC = "classic"
 
 
+# Default fallback values (can be overridden by config.toml)
+DEFAULT_DESTINATION_MAX_WIDTH = 28
 DEFAULT_TIME_RANGE_SECONDS = 5400  # 90 minutes
 DEFAULT_DEPARTURES_COUNT = 10
 DEFAULT_REFRESH_INTERVAL_SECONDS = 60
 DEFAULT_TERMINAL_WIDTH = 95
+
 REQUEST_TIMEOUT_SECONDS = 10
 WEATHER_CACHE_DURATION_SECONDS = 1800  # 30 minutes cache for weather
+DEFAULT_MAX_CONSECUTIVE_FAILURES = 10
 
 MET_LOCATIONFORECAST_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 ENTUR_GRAPHQL_URL = "https://api.entur.io/journey-planner/v3/graphql"
-
 DIGITRANSIT_HSL_URL = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1"
 DIGITRANSIT_FINLAND_URL = "https://api.digitransit.fi/routing/v2/finland/gtfs/v1"
+
 
 def get_xdg_config_dir() -> Path:
     """Returns ~/.config/avgangstider or $XDG_CONFIG_HOME/avgangstider."""
@@ -65,6 +71,63 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("avgangstider.config")
+
+
+def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
+    """
+    Loads non-secret settings from config.toml with fallback to built-in defaults.
+    Searches in:
+    1. Specified config_toml_path
+    2. Current working directory ./config.toml
+    3. User config directory ~/.config/avgangstider/config.toml
+    4. Project directory containing this file
+    """
+    candidates = []
+    if config_toml_path:
+        candidates.append(Path(config_toml_path))
+    candidates.append(Path.cwd() / "config.toml")
+    candidates.append(get_xdg_config_dir() / "config.toml")
+    candidates.append(Path(__file__).resolve().parent / "config.toml")
+
+    loaded_toml = {}
+    for candidate in candidates:
+        if candidate.is_file():
+            try:
+                with open(candidate, "rb") as f:
+                    loaded_toml = tomllib.load(f)
+                break
+            except (OSError, tomllib.TOMLDecodeError) as e:
+                logger.warning("Failed to parse config.toml at %s: %s", candidate, e)
+
+    display = loaded_toml.get("display", {})
+    query = loaded_toml.get("query", {})
+    cache = loaded_toml.get("cache", {})
+    network = loaded_toml.get("network", {})
+
+    return {
+        "destination_max_width": int(display.get("destination_max_width", DEFAULT_DESTINATION_MAX_WIDTH)),
+        "terminal_width": int(display.get("terminal_width", DEFAULT_TERMINAL_WIDTH)),
+        "terminal_style": str(display.get("terminal_style", TerminalStyle.MODERN)),
+        "language": display.get("language"),
+        "time_range_seconds": int(query.get("time_range_seconds", DEFAULT_TIME_RANGE_SECONDS)),
+        "departures_count": int(query.get("departures_count", DEFAULT_DEPARTURES_COUNT)),
+        "refresh_interval_seconds": int(query.get("refresh_interval_seconds", DEFAULT_REFRESH_INTERVAL_SECONDS)),
+        "weather_cache_duration_seconds": int(cache.get("weather_cache_duration_seconds", WEATHER_CACHE_DURATION_SECONDS)),
+        "request_timeout_seconds": int(network.get("request_timeout_seconds", REQUEST_TIMEOUT_SECONDS)),
+        "max_consecutive_failures": int(network.get("max_consecutive_failures", DEFAULT_MAX_CONSECUTIVE_FAILURES)),
+    }
+
+
+# Initial settings loaded from config.toml (or defaults)
+APP_SETTINGS = load_app_settings()
+
+DESTINATION_MAX_WIDTH = APP_SETTINGS["destination_max_width"]
+DEFAULT_TERMINAL_WIDTH = APP_SETTINGS["terminal_width"]
+DEFAULT_TIME_RANGE_SECONDS = APP_SETTINGS["time_range_seconds"]
+DEFAULT_DEPARTURES_COUNT = APP_SETTINGS["departures_count"]
+DEFAULT_REFRESH_INTERVAL_SECONDS = APP_SETTINGS["refresh_interval_seconds"]
+REQUEST_TIMEOUT_SECONDS = APP_SETTINGS["request_timeout_seconds"]
+WEATHER_CACHE_DURATION_SECONDS = APP_SETTINGS["weather_cache_duration_seconds"]
 
 
 def resolve_config_and_stops_files(
