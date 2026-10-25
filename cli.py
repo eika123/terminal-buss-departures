@@ -5,7 +5,7 @@ import time
 
 from dotenv import dotenv_values
 
-from adapters import detect_provider, fetch_and_update_departures
+from adapters import fetch_and_update_departures, resolve_stop_place_provider
 from config import (
     DEFAULT_DEPARTURES_COUNT,
     DEFAULT_REFRESH_INTERVAL_SECONDS,
@@ -171,7 +171,7 @@ def main() -> None:
     # 5. Prepare state per stop place with detected provider
     stops_state: dict[str, StopPlaceState] = {}
     for name, raw_id in active_stops.items():
-        prov, clean_id = detect_provider(raw_id)
+        prov, clean_id = resolve_stop_place_provider(raw_id)
         stops_state[name] = StopPlaceState(
             name=name,
             raw_id=raw_id,
@@ -208,6 +208,7 @@ def main() -> None:
 
             print("=" * (DEFAULT_TERMINAL_WIDTH + 1))
             time.sleep(args.intervall)
+
     except MaxConsecutiveFailuresExceeded as mcfe:
         print(f"\n{mcfe}")
         sys.exit(1)

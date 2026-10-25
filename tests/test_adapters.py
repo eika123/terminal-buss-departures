@@ -3,7 +3,7 @@ import requests
 
 from adapters import detect_provider, fetch_and_update_departures
 from adapters.digitransit import fetch_digitransit_stop
-from adapters.entur import fetch_entur_stop
+from adapters.entur import default_entur_provider, fetch_entur_stop
 from config import ConfigError
 from models import StopPlaceState
 
@@ -135,7 +135,7 @@ def test_fetch_and_update_departures_handles_error(mocker):
         name="Klimavegen",
         raw_id="NSR:StopPlace:53434",
         clean_id="NSR:StopPlace:53434",
-        provider="entur",
+        provider=default_entur_provider,
     )
     stops_state = {"Klimavegen": state}
     app_config = {"ET_CLIENT_NAME": "test"}

@@ -5,10 +5,13 @@ from typing import Any
 import arrow
 import requests
 
-from adapters.digitransit import fetch_digitransit_stop
-from adapters.entur import fetch_entur_stop
-from config import DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL, ConfigError
-from models import StopPlaceState
+from adapters.digitransit import (
+    default_digitransit_finland_provider,
+    default_digitransit_hsl_provider,
+)
+from adapters.entur import default_entur_provider
+from config import ConfigError
+from models import StopPlaceState, TransitProvider
 from resilience import ConsecutiveFailureTracker
 from weather import WeatherService, default_weather_service
 
@@ -24,22 +27,35 @@ def get_stop_tracker(stop_key: str) -> ConsecutiveFailureTracker:
     return _stop_failure_trackers[stop_key]
 
 
+# Registry of known TransitProvider implementations
+_PROVIDER_REGISTRY: dict[str, TransitProvider] = {
+    "entur": default_entur_provider,
+    "digitransit_hsl": default_digitransit_hsl_provider,
+    "digitransit_finland": default_digitransit_finland_provider,
+}
+
+
+def register_transit_provider(name: str, provider: TransitProvider) -> None:
+    """Register or override a TransitProvider in the adapter registry."""
+    _PROVIDER_REGISTRY[name] = provider
+
+
+def get_transit_provider(name: str) -> TransitProvider:
+    """Resolve a TransitProvider by name from registry."""
+    if name == "resrobot":
+        raise NotImplementedError("ResRobot (Sweden) adapter requires API key configuration.")
+    if name == "rejseplanen":
+        raise NotImplementedError("Rejseplanen (Denmark) adapter requires API key configuration.")
+    provider = _PROVIDER_REGISTRY.get(name)
+    if provider is None:
+        return default_entur_provider
+    return provider
+
+
 def detect_provider(raw_id: str) -> tuple[str, str]:
     """
     Determines provider ('entur', 'digitransit_hsl', 'digitransit_finland', etc.)
-    and returns (provider, clean_id).
-
-    Supports explicit country prefixes:
-      - 'NO:...' -> Entur
-      - 'FI:...' -> Digitransit HSL
-      - 'FINLAND:...' -> Digitransit Finland national
-      - 'SE:...' -> ResRobot (Sweden)
-      - 'DK:...' -> Rejseplanen (Denmark)
-
-    Or direct native feed IDs:
-      - 'NSR:...' -> Entur (Norway)
-      - 'HSL:...' or 'HKI:...' -> Digitransit HSL (Helsinki)
-      - 'tampere:...', 'waltti:...' -> Digitransit Finland national
+    and returns (provider_name, clean_id).
     """
     cleaned = raw_id.strip()
     id_lower = cleaned.lower()
@@ -73,6 +89,12 @@ def detect_provider(raw_id: str) -> tuple[str, str]:
     return "entur", cleaned
 
 
+def resolve_stop_place_provider(raw_id: str) -> tuple[TransitProvider, str]:
+    """Detects provider from stop place ID and resolves the concrete TransitProvider instance."""
+    provider_name, clean_id = detect_provider(raw_id)
+    return get_transit_provider(provider_name), clean_id
+
+
 def fetch_and_update_departures(
     session: requests.Session,
     stops_state: dict[str, StopPlaceState],
@@ -81,22 +103,17 @@ def fetch_and_update_departures(
     app_config: dict[str, Any],
     weather_service: WeatherService | None = None,
 ) -> None:
-    """Fetches departure updates using appropriate country/API adapter, then updates weather."""
+    """Fetches departure updates using each stop's TransitProvider, then updates weather."""
     active_weather_service = weather_service or default_weather_service
     for alias_name, state in stops_state.items():
         try:
-            if state.provider == "entur":
-                norm = fetch_entur_stop(session, state.clean_id, time_range_seconds, departures_count, app_config)
-            elif state.provider == "digitransit_hsl":
-                norm = fetch_digitransit_stop(session, state.clean_id, time_range_seconds, departures_count, app_config, DIGITRANSIT_HSL_URL)
-            elif state.provider == "digitransit_finland":
-                norm = fetch_digitransit_stop(session, state.clean_id, time_range_seconds, departures_count, app_config, DIGITRANSIT_FINLAND_URL)
-            elif state.provider == "resrobot":
-                raise NotImplementedError("ResRobot (Sweden) adapter requires API key configuration.")
-            elif state.provider == "rejseplanen":
-                raise NotImplementedError("Rejseplanen (Denmark) adapter requires API key configuration.")
-            else:
-                norm = fetch_entur_stop(session, state.clean_id, time_range_seconds, departures_count, app_config)
+            norm = state.provider.fetch_stop(
+                session=session,
+                clean_id=state.clean_id,
+                time_range_seconds=time_range_seconds,
+                departures_count=departures_count,
+                app_config=app_config,
+            )
 
             state.normalized_data = norm
             state.error_message = None
@@ -104,7 +121,9 @@ def fetch_and_update_departures(
             get_stop_tracker(alias_name).record_success()
 
             if norm.latitude is not None and norm.longitude is not None:
-                state.weather = active_weather_service.get_weather(session, norm.latitude, norm.longitude, app_config)
+                state.weather = active_weather_service.get_weather(
+                    session, norm.latitude, norm.longitude, app_config
+                )
 
         except ConfigError as ce:
             print(f"\nConfiguration Error: {ce}")
@@ -118,4 +137,3 @@ def fetch_and_update_departures(
         except (ValueError, KeyError, TypeError) as e:
             state.error_message = f"API_ERROR:{e}"
             get_stop_tracker(alias_name).record_failure(e)
-

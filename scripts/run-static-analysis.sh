@@ -37,7 +37,12 @@ echo "    pyflakes: clean (0 issues)"
 echo "--> Checking with ruff..."
 uv run ruff check .
 
-# 3. Bandit security analysis
+# 3. Pyright static type checker
+echo "--> Checking static types with pyright..."
+uv run pyright
+echo "    pyright: 0 errors"
+
+# 4. Bandit security analysis
 echo "--> Checking code security with bandit..."
 uv run bandit -r *.py adapters -s B404 --quiet
 echo "    bandit: clean? ...(0 security issues detected in scan)"

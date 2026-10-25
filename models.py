@@ -1,8 +1,11 @@
-from pydantic import BaseModel, Field
+from typing import Any, Protocol, runtime_checkable
+
+import requests
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WeatherData(BaseModel):
-    """Raw meteorological observation data from MET Norway."""
+    """Raw meteorological observation data from weather providers (e.g. MET Norway)."""
 
     temperature_c: float
     wind_ms: float
@@ -32,15 +35,52 @@ class NormalizedStopData(BaseModel):
     departures: list[DepartureData] = Field(default_factory=list)
 
 
+@runtime_checkable
+class TransitProvider(Protocol):
+    """Protocol for fetching normalized departure data from a transit authority API."""
+
+    @property
+    def provider_id(self) -> str:
+        """Unique identifier of the transit provider (e.g. 'entur', 'digitransit_hsl')."""
+        ...
+
+    def fetch_stop(
+        self,
+        session: requests.Session,
+        clean_id: str,
+        time_range_seconds: int,
+        departures_count: int,
+        app_config: dict[str, Any],
+    ) -> NormalizedStopData:
+        """Fetch and parse live departures into NormalizedStopData."""
+        ...
+
+
+@runtime_checkable
+class WeatherProvider(Protocol):
+    """Protocol for fetching raw weather data from a weather service provider."""
+
+    def fetch_weather(
+        self,
+        session: requests.Session,
+        lat: float,
+        lon: float,
+        app_config: dict[str, Any],
+    ) -> WeatherData | None:
+        """Fetch raw weather data for specified coordinates."""
+        ...
+
+
 class StopPlaceState(BaseModel):
     """State of an observed stop place in the active board session."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str
     raw_id: str
     clean_id: str
-    provider: str
+    provider: TransitProvider
     normalized_data: NormalizedStopData | None = None
     error_message: str | None = None
     last_updated_iso: str | None = None
     weather: WeatherData | None = None
-

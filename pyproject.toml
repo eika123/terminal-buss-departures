@@ -19,6 +19,7 @@ dev = [
     "bandit>=1.9.4",
     "pydeps>=3.0.9",
     "pyflakes>=4.0.3",
+    "pyright>=1.1.414",
     "pytest>=9.1.1",
     "pytest-mock>=3.17.0",
 ]

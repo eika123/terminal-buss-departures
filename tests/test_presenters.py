@@ -1,5 +1,6 @@
 import arrow
 
+from adapters.entur import default_entur_provider
 from models import DepartureData, NormalizedStopData, StopPlaceState, WeatherData
 from presenters import (
     DeparturePresenter,
@@ -106,7 +107,7 @@ def test_stop_place_presenter_render_normal(capsys):
         name="Klimavegen",
         raw_id="NSR:StopPlace:53434",
         clean_id="NSR:StopPlace:53434",
-        provider="entur",
+        provider=default_entur_provider,
         normalized_data=norm,
     )
 
@@ -123,7 +124,7 @@ def test_stop_place_presenter_render_error(capsys):
         name="Ukjent Stopp",
         raw_id="NSR:StopPlace:99999",
         clean_id="NSR:StopPlace:99999",
-        provider="entur",
+        provider=default_entur_provider,
         error_message="NOT_FOUND:Stop not found",
     )
 

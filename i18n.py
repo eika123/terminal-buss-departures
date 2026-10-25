@@ -1,16 +1,82 @@
-from typing import Any
+from enum import StrEnum
+from typing import Any, Literal
+
+LanguageCode = Literal["no", "sv", "fi", "en"]
 
 
-class Language:
+class Language(StrEnum):
     NO = "no"
     SV = "sv"
     FI = "fi"
     EN = "en"
 
+TranslationKey = Literal[
+    "now",
+    "min",
+    "on_time",
+    "delayed",
+    "early",
+    "no_realtime",
+    "offline_warn",
+    "offline_err",
+    "stop_not_found",
+    "clock",
+    "scheduled",
+    "offline_tag",
+    "fetching",
+    "exiting",
+    "no_departures",
+    "no_data",
+    "bus",
+    "coach",
+    "tram",
+    "rail",
+    "metro",
+    "water",
+    "ferry",
+    "air",
+    "unknown",
+    "clearsky",
+    "fair",
+    "partlycloudy",
+    "cloudy",
+    "rain",
+    "lightrain",
+    "heavyrain",
+    "rainshowers",
+    "lightrainshowers",
+    "heavyrainshowers",
+    "sleet",
+    "lightsleet",
+    "heavysleet",
+    "snow",
+    "lightsnow",
+    "heavysnow",
+    "snowshowers",
+    "fog",
+    "err_no_stops_file",
+    "create_stops_file",
+    "see_example_file",
+    "find_stops_url",
+    "err_empty_section",
+    "err_no_section_header",
+    "line_missing_header",
+    "err_no_profiles_found",
+    "define_at_least_one",
+    "err_reading_file",
+    "err_no_env",
+    "create_env_file",
+    "err_missing_client_name",
+    "client_name_format",
+    "err_profile_not_found",
+    "available_profiles",
+    "err_no_stops_active",
+]
+
 
 DEFAULT_LANGUAGE = Language.NO
 
-TRANSLATIONS: dict[str, dict[str, str]] = {
+TRANSLATIONS: dict[str, dict[TranslationKey, str]] = {
     "no": {
         "now": "Nå",
         "min": "min",
@@ -257,14 +323,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     },
 }
 
-CURRENT_LANG = DEFAULT_LANGUAGE
+CURRENT_LANG: str = DEFAULT_LANGUAGE
 
 
-def translate_international_message(key: str, lang: str | None = None, **kwargs: Any) -> str:
+def translate_international_message(
+    key: TranslationKey | str,
+    lang: str | None = None,
+    **kwargs: Any,
+) -> str:
     """Translates a message key to the specified or active language with optional kwargs formatting."""
     target_lang = lang or CURRENT_LANG
-    lang_dict = TRANSLATIONS.get(target_lang, TRANSLATIONS["no"])
-    text = lang_dict.get(key, TRANSLATIONS["en"].get(key, key))
+    lang_dict = TRANSLATIONS.get(target_lang, TRANSLATIONS.get(Language.NO, {}))
+    default_dict = TRANSLATIONS.get(Language.EN, {})
+    text = lang_dict.get(key, default_dict.get(key, key))  # type: ignore[call-overload]
     if kwargs:
         return text.format(**kwargs)
     return text
