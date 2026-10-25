@@ -22,6 +22,7 @@ dev = [
     "pyright>=1.1.414",
     "pytest>=9.1.1",
     "pytest-mock>=3.17.0",
+    "pytest-recording>=0.14.0",
 ]
 
 [tool.pytest.ini_options]
