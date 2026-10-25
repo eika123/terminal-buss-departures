@@ -18,7 +18,7 @@ from config import (
     resolve_config_and_stops_files,
 )
 from i18n import DEFAULT_LANGUAGE, TRANSLATIONS, translate_international_message
-from models import StopPlaceState
+from models import StopPlaceState, StopProfile
 from presenters import StopPlacePresenter
 from resilience import MaxConsecutiveFailuresExceeded, create_resilient_session
 
@@ -33,7 +33,7 @@ def clear_terminal() -> None:
         raise
 
 
-def parse_arguments(all_profiles: dict[str, dict[str, str]] | None = None) -> argparse.Namespace:
+def parse_arguments(all_profiles: dict[str, StopProfile] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Nordic transit departure board with live weather forecast.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -152,26 +152,26 @@ def main() -> None:
         active_lang = args.lang
 
     # 4. Select active profile
-    chosen_profile = args.profile or (args.positional_profile.lower() if args.positional_profile else None)
+    chosen_profile_name = args.profile or (args.positional_profile.lower() if args.positional_profile else None)
 
-    if chosen_profile:
-        if chosen_profile not in all_profiles:
+    if chosen_profile_name:
+        if chosen_profile_name not in all_profiles:
             available = ", ".join(f"'{p}'" for p in all_profiles)
-            print(translate_international_message("err_profile_not_found", lang=active_lang, profile=chosen_profile))
+            print(translate_international_message("err_profile_not_found", lang=active_lang, profile=chosen_profile_name))
             print(translate_international_message("available_profiles", lang=active_lang, profiles=available))
             sys.exit(1)
-        active_stops = all_profiles[chosen_profile]
+        active_profile = all_profiles[chosen_profile_name]
     else:
-        first_profile = next(iter(all_profiles.keys()))
-        active_stops = all_profiles[first_profile]
+        first_profile_name = next(iter(all_profiles.keys()))
+        active_profile = all_profiles[first_profile_name]
 
-    if not active_stops:
+    if not active_profile.stops:
         print(translate_international_message("err_no_stops_active", lang=active_lang))
         sys.exit(1)
 
     # 5. Prepare state per stop place with detected provider
     stops_state: dict[str, StopPlaceState] = {}
-    for name, raw_id in active_stops.items():
+    for name, raw_id in active_profile.stops.items():
         prov, clean_id = resolve_stop_place_provider(raw_id)
         stops_state[name] = StopPlaceState(
             name=name,
@@ -183,12 +183,19 @@ def main() -> None:
     session = create_resilient_session(retries=3, backoff_factor=0.5)
     clear_terminal()
 
-    use_norm = app_config.get("use_normalized_stop_names")
-    use_normalized_names = (
-        use_norm.lower() in ("true", "1", "yes")
-        if isinstance(use_norm, str)
-        else bool(use_norm) if use_norm is not None else DEFAULT_USE_NORMALIZED_STOP_NAMES
-    )
+    # Determine use_normalized_stop_names precedence:
+    # 1. Per-profile option in section header ([hjem, use_normalized_names=false])
+    # 2. Global app setting from config.toml
+    # 3. Built-in default
+    if active_profile.use_normalized_names is not None:
+        use_normalized_names = active_profile.use_normalized_names
+    else:
+        use_norm = app_config.get("use_normalized_stop_names")
+        use_normalized_names = (
+            use_norm.lower() in ("true", "1", "yes")
+            if isinstance(use_norm, str)
+            else bool(use_norm) if use_norm is not None else DEFAULT_USE_NORMALIZED_STOP_NAMES
+        )
 
     # 6. Initialize presenter
     stop_presenter = StopPlacePresenter(

@@ -84,3 +84,11 @@ class StopPlaceState(BaseModel):
     error_message: str | None = None
     last_updated_iso: str | None = None
     weather: WeatherData | None = None
+
+
+class StopProfile(BaseModel):
+    """Profile grouping a collection of stop places with per-profile options."""
+
+    name: str
+    stops: dict[str, str] = Field(default_factory=dict)
+    use_normalized_names: bool | None = None

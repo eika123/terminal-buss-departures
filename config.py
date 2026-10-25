@@ -70,6 +70,8 @@ logging.basicConfig(
     encoding="utf-8",
 )
 
+from models import StopProfile
+
 logger = logging.getLogger("avgangstider.config")
 
 
@@ -173,10 +175,13 @@ def resolve_config_and_stops_files(
     return env_file, stops_file
 
 
-def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, dict[str, str]]:
+def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, StopProfile]:
     """
     Reads stop places grouped by sections ([home], [work], etc.) from file.
-    Returns: {'home': {'Stop1': 'ID1', ...}, 'work': {...}}
+    Supports per-profile configuration options in section header, e.g.:
+    [home, use_normalized_names=false]
+
+    Returns: {'home': StopProfile(name='home', stops={...}, use_normalized_names=False), ...}
     """
     if not file_path.is_file():
         print(translate_international_message("err_no_stops_file", lang=lang, path=file_path))
@@ -185,8 +190,8 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, dict
         print(translate_international_message("find_stops_url", lang=lang))
         sys.exit(1)
 
-    profiles: dict[str, dict[str, str]] = {}
-    active_profile: str | None = None
+    profiles: dict[str, StopProfile] = {}
+    active_profile_name: str | None = None
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -197,18 +202,42 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, dict
                     continue
 
                 if line.startswith("[") and line.endswith("]"):
-                    active_profile = line[1:-1].strip().lower()
-                    if not active_profile:
+                    header_content = line[1:-1].strip()
+                    if not header_content:
                         print(translate_international_message("err_empty_section", lang=lang, line=line_no, path=file_path))
                         sys.exit(1)
-                    if active_profile not in profiles:
-                        profiles[active_profile] = {}
+
+                    # Parse header parts, e.g. "hjem, use_normalized_names=false"
+                    parts = [p.strip() for p in header_content.split(",")]
+                    profile_name = parts[0].strip().lower()
+                    if not profile_name:
+                        print(translate_international_message("err_empty_section", lang=lang, line=line_no, path=file_path))
+                        sys.exit(1)
+
+                    use_norm_opt: bool | None = None
+                    for opt in parts[1:]:
+                        if "=" in opt:
+                            opt_key, opt_val = opt.split("=", 1)
+                            opt_key = opt_key.strip().lower()
+                            opt_val = opt_val.strip().lower()
+                            if opt_key in ("use_normalized_names", "use_normalized_stop_names"):
+                                use_norm_opt = opt_val in ("true", "1", "yes")
+
+                    active_profile_name = profile_name
+                    if active_profile_name not in profiles:
+                        profiles[active_profile_name] = StopProfile(
+                            name=active_profile_name,
+                            stops={},
+                            use_normalized_names=use_norm_opt,
+                        )
+                    elif use_norm_opt is not None:
+                        profiles[active_profile_name].use_normalized_names = use_norm_opt
                     continue
 
                 if "=" not in line:
                     continue
 
-                if active_profile is None:
+                if active_profile_name is None:
                     print(translate_international_message("err_no_section_header", lang=lang, path=file_path))
                     print(translate_international_message("line_missing_header", lang=lang, line=line_no, text=line))
                     sys.exit(1)
@@ -217,7 +246,7 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, dict
                 clean_name = name.strip().strip('"').strip("'")
                 clean_id = nsr_id.strip().strip('"').strip("'")
 
-                profiles[active_profile][clean_name] = clean_id
+                profiles[active_profile_name].stops[clean_name] = clean_id
 
         if not profiles:
             print(translate_international_message("err_no_profiles_found", lang=lang, path=file_path))
