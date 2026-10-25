@@ -9,6 +9,27 @@
 # columns remain consistently aligned vertically.
 destination_max_width = 27
 
+# Maximum character width reserved for transport mode names (e.g. Buss, Trikk, T-bane).
+# Mode names exceeding this width are automatically truncated with a trailing dot (e.g. Spårvagn -> Spårv.).
+transport_mode_max_width = 7
+
+# Rapid transit and rapid transport naming style:
+# - "cultural" (default): Culturally aware naming based on visitor language (e.g. Finnish user in Oslo sees "Metro", Norwegian in London sees "Tuben").
+# - "original": Always use the authentic local name/branding of the system (e.g. "T-bane" in Oslo, "Bybanen" in Bergen, "Tube" in London, "Ratikka" in Tampere).
+# - "generic": Standard dictionary translation strictly from selected UI language.
+transit_naming_style = "cultural"
+
+# Optional global overrides per transport mode (e.g. if you want "T" or "M" everywhere):
+# [display.mode_overrides]
+# metro = "T"
+# tram = "Trikk"
+
+# Optional per-system overrides (system_id.mode = "name"):
+# [display.system_overrides]
+# "oslo_ruter.metro" = "T"
+# "helsinki_hsl.metro" = "M"
+# "stockholm_sl.metro" = "Tuben"
+
 # Total character width for stop headers and divider lines.
 terminal_width = 95
 

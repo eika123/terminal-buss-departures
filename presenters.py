@@ -2,6 +2,8 @@ import arrow
 
 from config import (
     DEFAULT_TERMINAL_WIDTH,
+    DEFAULT_TRANSIT_NAMING_STYLE,
+    DEFAULT_TRANSPORT_MODE_MAX_WIDTH,
     DEFAULT_USE_NORMALIZED_STOP_NAMES,
     DESTINATION_MAX_WIDTH,
     TerminalStyle,
@@ -13,6 +15,7 @@ from i18n import (
     translate_international_message,
 )
 from models import DepartureData, StopPlaceState, WeatherData
+from transit_identities import detect_transit_system, resolve_transit_term
 
 
 def make_terminal_hyperlink(url: str, text: str) -> str:
@@ -23,9 +26,21 @@ def make_terminal_hyperlink(url: str, text: str) -> str:
 class DeparturePresenter:
     """Handles localization and terminal formatting for DepartureData."""
 
-    def __init__(self, lang: str = DEFAULT_LANGUAGE, style: str = TerminalStyle.MODERN):
+    def __init__(
+        self,
+        lang: str = DEFAULT_LANGUAGE,
+        style: str = TerminalStyle.MODERN,
+        mode_max_width: int = DEFAULT_TRANSPORT_MODE_MAX_WIDTH,
+        naming_style: str = DEFAULT_TRANSIT_NAMING_STYLE,
+        mode_overrides: dict[str, str] | None = None,
+        system_overrides: dict[str, str] | None = None,
+    ):
         self.lang = lang
         self.style = style
+        self.mode_max_width = mode_max_width
+        self.naming_style = naming_style
+        self.mode_overrides = mode_overrides or {}
+        self.system_overrides = system_overrides or {}
 
     def minutes_until_departure(self, expected_iso_str: str) -> str:
         """Calculates remaining minutes until departure based on expected time."""
@@ -41,19 +56,35 @@ class DeparturePresenter:
         else:
             return f"{minutes_left} {translate_international_message('min', lang=self.lang)}"
 
-    def format_transport_mode(self, transport_mode: str | None) -> str:
-        """Formats transport mode with emoji and localized text."""
+    def format_transport_mode(self, transport_mode: str | None, system_id: str | None = None) -> str:
+        """Formats transport mode with emoji and localized text, truncating if exceeding mode_max_width."""
         mode_key = (transport_mode or "").lower()
-        localized_name = translate_international_message(mode_key, lang=self.lang)
-        if localized_name == mode_key:
-            localized_name = mode_key.capitalize() or translate_international_message("unknown", lang=self.lang)
+        localized_name = resolve_transit_term(
+            mode=mode_key,
+            system_id=system_id,
+            user_lang=self.lang,
+            naming_style=self.naming_style,
+            mode_overrides=self.mode_overrides,
+            system_overrides=self.system_overrides,
+        )
+
+        if len(localized_name) > self.mode_max_width:
+            match localized_name:
+                case "Spårvagn" if self.mode_max_width >= 6:
+                    display_name = "Spårv."
+                case "Tunnelbana" if self.mode_max_width >= 5:
+                    display_name = "Tunn."
+                case _:
+                    display_name = localized_name[: max(1, self.mode_max_width - 1)] + "."
+        else:
+            display_name = localized_name
 
         match self.style:
             case TerminalStyle.MODERN:
                 emoji = TRANSPORT_EMOJIS.get(mode_key, "🚏")
-                return f"{emoji} {localized_name:<10}"
+                return f"{emoji} {display_name:<{self.mode_max_width}}"
             case _:
-                return f"{localized_name:<10}"
+                return f"{display_name:<{self.mode_max_width}}"
 
     def format_delay(self, aimed_raw: str, expected_raw: str) -> str:
         aimed = arrow.get(aimed_raw)
@@ -79,8 +110,10 @@ class DeparturePresenter:
             else:
                 return f"{green}[V] {translate_international_message('on_time', lang=self.lang)}{reset}"
 
-    def format_departure_row(self, dep: DepartureData, has_fresh_data: bool) -> str:
-        mode_str = self.format_transport_mode(dep.transport_mode)
+    def format_departure_row(
+        self, dep: DepartureData, has_fresh_data: bool, system_id: str | None = None
+    ) -> str:
+        mode_str = self.format_transport_mode(dep.transport_mode, system_id=system_id)
         line_code = dep.line_code
         destination = dep.destination
         if destination == "unknown":
@@ -191,12 +224,23 @@ class StopPlacePresenter:
         style: str = TerminalStyle.MODERN,
         terminal_width: int = DEFAULT_TERMINAL_WIDTH,
         use_normalized_stop_names: bool = DEFAULT_USE_NORMALIZED_STOP_NAMES,
+        transport_mode_max_width: int = DEFAULT_TRANSPORT_MODE_MAX_WIDTH,
+        transit_naming_style: str = DEFAULT_TRANSIT_NAMING_STYLE,
+        mode_overrides: dict[str, str] | None = None,
+        system_overrides: dict[str, str] | None = None,
     ):
         self.lang = lang
         self.style = style
         self.terminal_width = terminal_width
         self.use_normalized_stop_names = use_normalized_stop_names
-        self.dep_presenter = DeparturePresenter(lang=lang, style=style)
+        self.dep_presenter = DeparturePresenter(
+            lang=lang,
+            style=style,
+            mode_max_width=transport_mode_max_width,
+            naming_style=transit_naming_style,
+            mode_overrides=mode_overrides,
+            system_overrides=system_overrides,
+        )
         self.weather_presenter = WeatherPresenter(lang=lang, style=style)
 
 
@@ -280,6 +324,14 @@ class StopPlacePresenter:
             print(f"  {translate_international_message('no_departures', lang=self.lang)}")
             return
 
+        system_id = state.transit_system_id or detect_transit_system(
+            clean_id=state.clean_id,
+            latitude=norm.latitude if norm else None,
+            longitude=norm.longitude if norm else None,
+        )
+
         for dep in departures:
-            row = self.dep_presenter.format_departure_row(dep, has_fresh_data=has_fresh_data)
+            row = self.dep_presenter.format_departure_row(
+                dep, has_fresh_data=has_fresh_data, system_id=system_id
+            )
             print(row)

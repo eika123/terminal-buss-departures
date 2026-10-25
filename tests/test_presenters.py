@@ -18,13 +18,29 @@ def test_make_terminal_hyperlink():
 
 
 def test_departure_presenter_transport_mode_translations():
-    p_no = DeparturePresenter(lang="no")
+    p_no = DeparturePresenter(lang="no", mode_max_width=7)
     assert "Trikk" in p_no.format_transport_mode("tram")
     assert "Buss" in p_no.format_transport_mode("bus")
 
-    p_fi = DeparturePresenter(lang="fi")
+    p_fi = DeparturePresenter(lang="fi", mode_max_width=7)
     assert "Spora" in p_fi.format_transport_mode("tram")
     assert "Bussi" in p_fi.format_transport_mode("bus")
+
+    # Swedish with width 7: Spårvagn truncates to Spårv., T-bana fits within 7
+    p_sv = DeparturePresenter(lang="sv", mode_max_width=7)
+    assert "Spårv." in p_sv.format_transport_mode("tram")
+    assert "T-bana" in p_sv.format_transport_mode("metro")
+
+    # Swedish with width 10: Spårvagn is displayed without truncation
+    p_sv_10 = DeparturePresenter(lang="sv", mode_max_width=10)
+    assert "Spårvagn" in p_sv_10.format_transport_mode("tram")
+
+    # Generic truncation and natural abbreviation for long names
+    p_custom = DeparturePresenter(lang="no", mode_max_width=5)
+    # Trikk (5) fits exactly in 5
+    assert "Trikk" in p_custom.format_transport_mode("tram")
+    # Custom long word truncated with dot (4 chars + dot = 5 chars)
+    assert "Fant." in p_custom.format_transport_mode("fantasi_transport")
 
 
 def test_departure_presenter_format_delay():

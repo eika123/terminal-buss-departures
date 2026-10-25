@@ -28,6 +28,7 @@ py-modules = [
     "models",
     "presenters",
     "resilience",
+    "transit_identities",
     "weather",
 ]
 

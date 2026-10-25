@@ -10,3 +10,6 @@ static-analysis/
 *.svg
 tests/cassettes/
 
+.pytest_cache/*
+.ruff_cache/*
+.venv

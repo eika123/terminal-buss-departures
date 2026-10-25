@@ -158,7 +158,7 @@ TRANSLATIONS: dict[str, dict[TranslationKey, str]] = {
         "bus": "Buss",
         "tram": "Spårvagn",
         "rail": "Tåg",
-        "metro": "Tunnelbana",
+        "metro": "T-bana",
         "water": "Båt",
         "ferry": "Färja",
         "air": "Flyg",

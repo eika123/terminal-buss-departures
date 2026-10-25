@@ -11,7 +11,11 @@ from config import (
     DEFAULT_REFRESH_INTERVAL_SECONDS,
     DEFAULT_TERMINAL_WIDTH,
     DEFAULT_TIME_RANGE_SECONDS,
+    DEFAULT_TRANSIT_NAMING_STYLE,
     DEFAULT_USE_NORMALIZED_STOP_NAMES,
+    MODE_OVERRIDES,
+    SYSTEM_OVERRIDES,
+    TRANSPORT_MODE_MAX_WIDTH,
     TerminalStyle,
     get_xdg_config_dir,
     load_stop_places,
@@ -197,12 +201,25 @@ def main() -> None:
             else bool(use_norm) if use_norm is not None else DEFAULT_USE_NORMALIZED_STOP_NAMES
         )
 
+    # Determine transit_naming_style precedence:
+    # 1. Per-profile option in section header ([helsinki, transit_naming=cultural])
+    # 2. Global app setting from config.toml
+    # 3. Built-in default
+    if active_profile.transit_naming is not None:
+        transit_naming_style = active_profile.transit_naming
+    else:
+        transit_naming_style = str(app_config.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE))
+
     # 6. Initialize presenter
     stop_presenter = StopPlacePresenter(
         lang=active_lang,
         style=TerminalStyle.MODERN,
         terminal_width=DEFAULT_TERMINAL_WIDTH,
         use_normalized_stop_names=use_normalized_names,
+        transport_mode_max_width=TRANSPORT_MODE_MAX_WIDTH,
+        transit_naming_style=transit_naming_style,
+        mode_overrides=MODE_OVERRIDES,
+        system_overrides=SYSTEM_OVERRIDES,
     )
 
     # 7. Main execution loop

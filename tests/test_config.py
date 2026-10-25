@@ -12,8 +12,16 @@ def test_load_app_settings_from_toml(tmp_path):
     toml_file.write_text("""
 [display]
 destination_max_width = 35
+transport_mode_max_width = 10
+transit_naming_style = "original"
 terminal_width = 110
 language = "sv"
+
+[display.mode_overrides]
+metro = "T"
+
+[display.system_overrides]
+"oslo_ruter.metro" = "T-banen"
 
 [query]
 time_range_seconds = 7200
@@ -22,6 +30,10 @@ refresh_interval_seconds = 30
 """)
     settings = load_app_settings(config_toml_path=toml_file)
     assert settings["destination_max_width"] == 35
+    assert settings["transport_mode_max_width"] == 10
+    assert settings["transit_naming_style"] == "original"
+    assert settings["mode_overrides"]["metro"] == "T"
+    assert settings["system_overrides"]["oslo_ruter.metro"] == "T-banen"
     assert settings["terminal_width"] == 110
     assert settings["language"] == "sv"
     assert settings["time_range_seconds"] == 7200
@@ -66,16 +78,19 @@ UiT = "NSR:StopPlace:52488"
 def test_load_stop_places_per_profile_options(tmp_path):
     stops_file = tmp_path / "custom_stops.txt"
     stops_file.write_text("""
-[hjem, use_normalized_names=false]
+[hjem, use_normalized_names=false, transit_naming=original]
 Min Holdeplass = "NSR:StopPlace:53434"
 
-[jobb, use_normalized_names=true]
+[jobb, use_normalized_names=true, transit_naming=cultural]
 Kontoret = "NSR:StopPlace:52488"
 """)
     profiles = load_stop_places(stops_file)
     assert profiles["hjem"].use_normalized_names is False
+    assert profiles["hjem"].transit_naming == "original"
+    assert profiles["hjem"].options["transit_naming"] == "original"
     assert profiles["hjem"].stops["Min Holdeplass"] == "NSR:StopPlace:53434"
     assert profiles["jobb"].use_normalized_names is True
+    assert profiles["jobb"].transit_naming == "cultural"
     assert profiles["jobb"].stops["Kontoret"] == "NSR:StopPlace:52488"
 
 

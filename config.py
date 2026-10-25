@@ -24,6 +24,8 @@ class TerminalStyle:
 
 # Default fallback values (can be overridden by config.toml)
 DEFAULT_DESTINATION_MAX_WIDTH = 28
+DEFAULT_TRANSPORT_MODE_MAX_WIDTH = 7
+DEFAULT_TRANSIT_NAMING_STYLE = "cultural"
 DEFAULT_TIME_RANGE_SECONDS = 5400  # 90 minutes
 DEFAULT_DEPARTURES_COUNT = 10
 DEFAULT_REFRESH_INTERVAL_SECONDS = 60
@@ -107,8 +109,15 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
     cache = loaded_toml.get("cache", {})
     network = loaded_toml.get("network", {})
 
+    mode_ov = display.get("mode_overrides", {})
+    sys_ov = display.get("system_overrides", {})
+
     return {
         "destination_max_width": int(display.get("destination_max_width", DEFAULT_DESTINATION_MAX_WIDTH)),
+        "transport_mode_max_width": int(display.get("transport_mode_max_width", DEFAULT_TRANSPORT_MODE_MAX_WIDTH)),
+        "transit_naming_style": str(display.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE)),
+        "mode_overrides": {str(k).lower(): str(v) for k, v in mode_ov.items()} if isinstance(mode_ov, dict) else {},
+        "system_overrides": {str(k).lower(): str(v) for k, v in sys_ov.items()} if isinstance(sys_ov, dict) else {},
         "terminal_width": int(display.get("terminal_width", DEFAULT_TERMINAL_WIDTH)),
         "terminal_style": str(display.get("terminal_style", TerminalStyle.MODERN)),
         "language": display.get("language"),
@@ -126,6 +135,10 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
 APP_SETTINGS = load_app_settings()
 
 DESTINATION_MAX_WIDTH = APP_SETTINGS["destination_max_width"]
+TRANSPORT_MODE_MAX_WIDTH = APP_SETTINGS["transport_mode_max_width"]
+DEFAULT_TRANSIT_NAMING_STYLE = APP_SETTINGS["transit_naming_style"]
+MODE_OVERRIDES = APP_SETTINGS["mode_overrides"]
+SYSTEM_OVERRIDES = APP_SETTINGS["system_overrides"]
 DEFAULT_TERMINAL_WIDTH = APP_SETTINGS["terminal_width"]
 DEFAULT_TIME_RANGE_SECONDS = APP_SETTINGS["time_range_seconds"]
 DEFAULT_DEPARTURES_COUNT = APP_SETTINGS["departures_count"]
@@ -215,13 +228,18 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
                         sys.exit(1)
 
                     use_norm_opt: bool | None = None
+                    transit_naming_opt: str | None = None
+                    options_dict: dict[str, str] = {}
                     for opt in parts[1:]:
                         if "=" in opt:
                             opt_key, opt_val = opt.split("=", 1)
                             opt_key = opt_key.strip().lower()
                             opt_val = opt_val.strip().lower()
+                            options_dict[opt_key] = opt_val
                             if opt_key in ("use_normalized_names", "use_normalized_stop_names"):
                                 use_norm_opt = opt_val in ("true", "1", "yes")
+                            elif opt_key in ("transit_naming", "transit_naming_style"):
+                                transit_naming_opt = opt_val
 
                     active_profile_name = profile_name
                     if active_profile_name not in profiles:
@@ -229,9 +247,15 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
                             name=active_profile_name,
                             stops={},
                             use_normalized_names=use_norm_opt,
+                            transit_naming=transit_naming_opt,
+                            options=options_dict,
                         )
-                    elif use_norm_opt is not None:
-                        profiles[active_profile_name].use_normalized_names = use_norm_opt
+                    else:
+                        if use_norm_opt is not None:
+                            profiles[active_profile_name].use_normalized_names = use_norm_opt
+                        if transit_naming_opt is not None:
+                            profiles[active_profile_name].transit_naming = transit_naming_opt
+                        profiles[active_profile_name].options.update(options_dict)
                     continue
 
                 if "=" not in line:

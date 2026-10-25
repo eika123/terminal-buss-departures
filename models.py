@@ -84,6 +84,7 @@ class StopPlaceState(BaseModel):
     error_message: str | None = None
     last_updated_iso: str | None = None
     weather: WeatherData | None = None
+    transit_system_id: str | None = None
 
 
 class StopProfile(BaseModel):
@@ -92,3 +93,5 @@ class StopProfile(BaseModel):
     name: str
     stops: dict[str, str] = Field(default_factory=dict)
     use_normalized_names: bool | None = None
+    transit_naming: str | None = None
+    options: dict[str, str] = Field(default_factory=dict)
