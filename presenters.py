@@ -1,6 +1,11 @@
 import arrow
 
-from config import DEFAULT_TERMINAL_WIDTH, DESTINATION_MAX_WIDTH, TerminalStyle
+from config import (
+    DEFAULT_TERMINAL_WIDTH,
+    DEFAULT_USE_NORMALIZED_STOP_NAMES,
+    DESTINATION_MAX_WIDTH,
+    TerminalStyle,
+)
 from i18n import (
     DEFAULT_LANGUAGE,
     TRANSPORT_EMOJIS,
@@ -185,10 +190,12 @@ class StopPlacePresenter:
         lang: str = DEFAULT_LANGUAGE,
         style: str = TerminalStyle.MODERN,
         terminal_width: int = DEFAULT_TERMINAL_WIDTH,
+        use_normalized_stop_names: bool = DEFAULT_USE_NORMALIZED_STOP_NAMES,
     ):
         self.lang = lang
         self.style = style
         self.terminal_width = terminal_width
+        self.use_normalized_stop_names = use_normalized_stop_names
         self.dep_presenter = DeparturePresenter(lang=lang, style=style)
         self.weather_presenter = WeatherPresenter(lang=lang, style=style)
 
@@ -218,10 +225,11 @@ class StopPlacePresenter:
         yellow = "\033[93m" if self.style != TerminalStyle.CLASSIC else ""
         reset = "\033[0m" if self.style != TerminalStyle.CLASSIC else ""
 
+        prov_id = getattr(state.provider, "provider_id", str(state.provider))
         if state.error_message.startswith("NOT_FOUND:"):
             icon = "❓" if self.style != TerminalStyle.CLASSIC else "[?]"
             err_msg = translate_international_message(
-                "stop_not_found", lang=self.lang, id=state.clean_id, provider=state.provider
+                "stop_not_found", lang=self.lang, id=state.clean_id, provider=prov_id
             )
             print(f" {yellow}{icon} {err_msg}{reset}")
             return True
@@ -229,7 +237,7 @@ class StopPlacePresenter:
         if state.error_message.startswith("API_ERROR:"):
             icon = "⚠️" if self.style != TerminalStyle.CLASSIC else "[!]"
             detalj = state.error_message.split(":", 1)[1]
-            print(f" {yellow}{icon} API feil ({state.provider}): {detalj[:80]}{reset}")
+            print(f" {yellow}{icon} API feil ({prov_id}): {detalj[:80]}{reset}")
             return True
 
         if state.normalized_data and state.last_updated_iso:
@@ -248,7 +256,10 @@ class StopPlacePresenter:
         has_fresh_data = state.error_message is None and state.normalized_data is not None
 
         norm = state.normalized_data
-        display_name = norm.name if norm and norm.name else state.name
+        if self.use_normalized_stop_names and norm and norm.name:
+            display_name = norm.name
+        else:
+            display_name = state.name
         weather_text = self.weather_presenter.format_header(state.weather)
 
         yr_url: str | None = None

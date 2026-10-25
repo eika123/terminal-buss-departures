@@ -11,6 +11,7 @@ from config import (
     DEFAULT_REFRESH_INTERVAL_SECONDS,
     DEFAULT_TERMINAL_WIDTH,
     DEFAULT_TIME_RANGE_SECONDS,
+    DEFAULT_USE_NORMALIZED_STOP_NAMES,
     TerminalStyle,
     get_xdg_config_dir,
     load_stop_places,
@@ -182,11 +183,19 @@ def main() -> None:
     session = create_resilient_session(retries=3, backoff_factor=0.5)
     clear_terminal()
 
+    use_norm = app_config.get("use_normalized_stop_names")
+    use_normalized_names = (
+        use_norm.lower() in ("true", "1", "yes")
+        if isinstance(use_norm, str)
+        else bool(use_norm) if use_norm is not None else DEFAULT_USE_NORMALIZED_STOP_NAMES
+    )
+
     # 6. Initialize presenter
     stop_presenter = StopPlacePresenter(
         lang=active_lang,
         style=TerminalStyle.MODERN,
         terminal_width=DEFAULT_TERMINAL_WIDTH,
+        use_normalized_stop_names=use_normalized_names,
     )
 
     # 7. Main execution loop

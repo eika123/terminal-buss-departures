@@ -28,6 +28,7 @@ DEFAULT_TIME_RANGE_SECONDS = 5400  # 90 minutes
 DEFAULT_DEPARTURES_COUNT = 10
 DEFAULT_REFRESH_INTERVAL_SECONDS = 60
 DEFAULT_TERMINAL_WIDTH = 95
+DEFAULT_USE_NORMALIZED_STOP_NAMES = True
 
 REQUEST_TIMEOUT_SECONDS = 10
 WEATHER_CACHE_DURATION_SECONDS = 1800  # 30 minutes cache for weather
@@ -109,6 +110,7 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
         "terminal_width": int(display.get("terminal_width", DEFAULT_TERMINAL_WIDTH)),
         "terminal_style": str(display.get("terminal_style", TerminalStyle.MODERN)),
         "language": display.get("language"),
+        "use_normalized_stop_names": bool(display.get("use_normalized_stop_names", DEFAULT_USE_NORMALIZED_STOP_NAMES)),
         "time_range_seconds": int(query.get("time_range_seconds", DEFAULT_TIME_RANGE_SECONDS)),
         "departures_count": int(query.get("departures_count", DEFAULT_DEPARTURES_COUNT)),
         "refresh_interval_seconds": int(query.get("refresh_interval_seconds", DEFAULT_REFRESH_INTERVAL_SECONDS)),
@@ -128,6 +130,7 @@ DEFAULT_DEPARTURES_COUNT = APP_SETTINGS["departures_count"]
 DEFAULT_REFRESH_INTERVAL_SECONDS = APP_SETTINGS["refresh_interval_seconds"]
 REQUEST_TIMEOUT_SECONDS = APP_SETTINGS["request_timeout_seconds"]
 WEATHER_CACHE_DURATION_SECONDS = APP_SETTINGS["weather_cache_duration_seconds"]
+DEFAULT_USE_NORMALIZED_STOP_NAMES = APP_SETTINGS["use_normalized_stop_names"]
 
 
 def resolve_config_and_stops_files(

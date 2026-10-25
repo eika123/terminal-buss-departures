@@ -18,6 +18,13 @@ terminal_width = 95
 # - "fancy": Extended styling
 terminal_style = "modern"
 
+# Whether to display official normalized stop names from the transit API (true)
+# or the custom alias configured by the user in stoppesteder.txt (false).
+# Setting this to true is recommended initially to verify that your stop IDs match
+# the intended stations. Setting this to false allows custom disambiguation
+# (e.g., distinguishing east-bound vs west-bound platforms having identical names).
+use_normalized_stop_names = false
+
 # Default interface language ("no", "sv", "fi", "en").
 # Can be overridden via the command-line flag --lang <lang>.
 language = "no"
