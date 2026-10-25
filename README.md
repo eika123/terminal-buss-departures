@@ -1,6 +1,6 @@
 # Nordic Transit Departure Board (avgangstider)
 
-A modern, terminal-based transit departure board that fetches real-time public transit schedules (bus, tram, rail, metro, ferry) in Norway (via Entur GraphQL) and the Helsinki region in Finland (via Digitransit HSL), enriched with local weather observations from the Norwegian Meteorological Institute (MET Norway / Yr).
+A terminal-based transit departure board that fetches real-time public transit schedules (bus, tram, rail, metro, ferry) in Norway (via Entur GraphQL) and the Helsinki region in Finland (via Digitransit HSL), enriched with local weather observations from the Norwegian Meteorological Institute (MET Norway / Yr).
 
 > **Current Regional Support Note:**
 > - 🇳🇴 **Norway**: Fully supported via Entur across all national transit operators.
