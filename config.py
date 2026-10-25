@@ -33,7 +33,6 @@ REQUEST_TIMEOUT_SECONDS = 10
 WEATHER_CACHE_DURATION_SECONDS = 1800  # 30 minutes cache for weather
 DEFAULT_MAX_CONSECUTIVE_FAILURES = 10
 
-MET_LOCATIONFORECAST_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 ENTUR_GRAPHQL_URL = "https://api.entur.io/journey-planner/v3/graphql"
 DIGITRANSIT_HSL_URL = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1"
 DIGITRANSIT_FINLAND_URL = "https://api.digitransit.fi/routing/v2/finland/gtfs/v1"

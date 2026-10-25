@@ -3,7 +3,11 @@ import pytest
 
 from config import ConfigError
 from models import WeatherData
-from weather import WeatherCache, fetch_weather_from_met
+from weather import (
+    MetWeatherAdapter,
+    WeatherCache,
+    WeatherService,
+)
 
 
 def test_weather_cache_save_and_get(tmp_path):
@@ -38,18 +42,15 @@ def test_weather_cache_corrupt_file_handling(tmp_path):
     assert cache.get_weather(60.0, 10.0) is None
 
 
-def test_fetch_weather_from_met_missing_user_agent(mocker):
+def test_met_weather_adapter_missing_user_agent(mocker):
     session = mocker.MagicMock()
+    adapter = MetWeatherAdapter()
     with pytest.raises(ConfigError) as exc_info:
-        fetch_weather_from_met(session, 60.0, 10.0, app_config={})
+        adapter.fetch_weather(session, 60.0, 10.0, app_config={})
     assert "MET_USER_AGENT" in str(exc_info.value)
 
 
-def test_fetch_weather_from_met_success(mocker, tmp_path):
-    # Isolated cache for test
-    cache_file = tmp_path / "met_cache.json"
-    mocker.patch("weather.weather_cache", WeatherCache(cache_path=cache_file))
-
+def test_met_weather_adapter_success(mocker):
     mock_resp = mocker.MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
@@ -78,8 +79,9 @@ def test_fetch_weather_from_met_success(mocker, tmp_path):
     session = mocker.MagicMock()
     session.get.return_value = mock_resp
 
+    adapter = MetWeatherAdapter()
     app_config = {"MET_USER_AGENT": "TestApp/1.0 (contact@example.com)"}
-    weather = fetch_weather_from_met(session, 60.123, 10.456, app_config)
+    weather = adapter.fetch_weather(session, 60.123, 10.456, app_config)
 
     assert weather is not None
     assert weather.temperature_c == 11.2
@@ -87,3 +89,62 @@ def test_fetch_weather_from_met_success(mocker, tmp_path):
     assert weather.wind_gust_ms == 7.0
     assert weather.wind_direction_degrees == 220.0
     assert weather.symbol_code == "cloudy"
+
+
+def test_weather_service_uses_cache_on_hit(mocker, tmp_path):
+    cache_file = tmp_path / "svc_cache.json"
+    cache = WeatherCache(cache_path=cache_file)
+
+    now_iso = arrow.now().isoformat()
+    cached_obs = WeatherData(
+        temperature_c=15.0,
+        wind_ms=2.0,
+        wind_direction_degrees=180.0,
+        symbol_code="clearsky_day",
+        fetched_at_iso=now_iso,
+    )
+    cache.save_weather(59.91, 10.75, cached_obs)
+
+    mock_provider = mocker.MagicMock()
+    service = WeatherService(provider=mock_provider, cache=cache)
+
+    session = mocker.MagicMock()
+    res = service.get_weather(session, 59.91, 10.75, app_config={})
+
+    assert res is not None
+    assert res.temperature_c == 15.0
+    assert mock_provider.fetch_weather.call_count == 0
+
+
+def test_weather_service_fetches_and_caches_on_miss(mocker, tmp_path):
+    cache_file = tmp_path / "svc_cache_miss.json"
+    cache = WeatherCache(cache_path=cache_file)
+
+    now_iso = arrow.now().isoformat()
+    fresh_obs = WeatherData(
+        temperature_c=18.5,
+        wind_ms=5.0,
+        wind_direction_degrees=270.0,
+        symbol_code="rain",
+        fetched_at_iso=now_iso,
+    )
+
+    mock_provider = mocker.MagicMock()
+    mock_provider.fetch_weather.return_value = fresh_obs
+
+    service = WeatherService(provider=mock_provider, cache=cache)
+    session = mocker.MagicMock()
+    res = service.get_weather(session, 59.91, 10.75, app_config={"MET_USER_AGENT": "Test/1.0"})
+
+    assert res == fresh_obs
+    assert mock_provider.fetch_weather.call_count == 1
+
+    # Next call should hit cache without provider call
+    res_second = service.get_weather(session, 59.91, 10.75, app_config={"MET_USER_AGENT": "Test/1.0"})
+    assert res_second == fresh_obs
+    assert mock_provider.fetch_weather.call_count == 1
+
+
+def test_weather_service_requires_cache():
+    with pytest.raises(ValueError, match="mandatory"):
+        WeatherService(cache=None)  # type: ignore

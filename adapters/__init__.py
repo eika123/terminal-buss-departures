@@ -10,7 +10,7 @@ from adapters.entur import fetch_entur_stop
 from config import DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL, ConfigError
 from models import StopPlaceState
 from resilience import ConsecutiveFailureTracker
-from weather import fetch_weather_from_met
+from weather import WeatherService, default_weather_service
 
 logger = logging.getLogger("avgangstider.adapters")
 
@@ -79,8 +79,10 @@ def fetch_and_update_departures(
     time_range_seconds: int,
     departures_count: int,
     app_config: dict[str, Any],
+    weather_service: WeatherService | None = None,
 ) -> None:
     """Fetches departure updates using appropriate country/API adapter, then updates weather."""
+    active_weather_service = weather_service or default_weather_service
     for alias_name, state in stops_state.items():
         try:
             if state.provider == "entur":
@@ -102,7 +104,7 @@ def fetch_and_update_departures(
             get_stop_tracker(alias_name).record_success()
 
             if norm.latitude is not None and norm.longitude is not None:
-                state.weather = fetch_weather_from_met(session, norm.latitude, norm.longitude, app_config)
+                state.weather = active_weather_service.get_weather(session, norm.latitude, norm.longitude, app_config)
 
         except ConfigError as ce:
             print(f"\nConfiguration Error: {ce}")

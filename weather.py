@@ -1,13 +1,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import arrow
 import requests
 
 from config import (
-    MET_LOCATIONFORECAST_URL,
     REQUEST_TIMEOUT_SECONDS,
     WEATHER_CACHE_DURATION_SECONDS,
     WEATHER_CACHE_FILE,
@@ -18,12 +17,10 @@ from resilience import ConsecutiveFailureTracker
 
 logger = logging.getLogger("avgangstider.weather")
 
-# Per-request tracker for live MET Norway API calls
-met_api_tracker = ConsecutiveFailureTracker(name="met_weather_api", max_failures=10)
-
 
 class WeatherCache:
     """Handles reading, writing and caching raw weather forecasts on disk."""
+
     def __init__(self, cache_path: Path = WEATHER_CACHE_FILE, max_failures: int = 10):
         self.cache_path = cache_path
         self.tracker = ConsecutiveFailureTracker(name="weather_cache", max_failures=max_failures)
@@ -77,74 +74,131 @@ class WeatherCache:
         self._save_to_disk()
 
 
-weather_cache = WeatherCache()
+class WeatherProvider(Protocol):
+    """Protocol for fetching weather data from a weather service provider."""
+
+    def fetch_weather(
+        self,
+        session: requests.Session,
+        lat: float,
+        lon: float,
+        app_config: dict[str, Any],
+    ) -> WeatherData | None:
+        """Fetch raw weather data for specified coordinates."""
+        ...
 
 
-def fetch_weather_from_met(
-    session: requests.Session,
-    lat: float,
-    lon: float,
-    app_config: dict[str, Any],
-) -> WeatherData | None:
-    """Fetches raw current weather observation from MET Norway with caching."""
-    cached = weather_cache.get_weather(lat, lon)
-    if cached is not None:
-        return cached
+class MetWeatherAdapter:
+    """Weather provider implementation for Meteorologisk institutt (MET Norway)."""
 
-    user_agent = app_config.get("MET_USER_AGENT")
-    if not user_agent or not str(user_agent).strip():
-        raise ConfigError(
-            "Missing required config 'MET_USER_AGENT' in .env.\n"
-            "Meteorologisk institutt (MET Norway) requires that all clients identify themselves\n"
-            "with an application name and contact info (e.g. email or URL).\n"
-            "Example in .env: MET_USER_AGENT=\"MyTransitApp/1.0 (contact: user@example.com)\""
-        )
+    DEFAULT_API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 
-    headers = {
-        "User-Agent": str(user_agent).strip(),
-        "Accept": "application/json",
-    }
-    params = {"lat": f"{lat:.4f}", "lon": f"{lon:.4f}"}
+    def __init__(
+        self,
+        api_url: str = DEFAULT_API_URL,
+        tracker: ConsecutiveFailureTracker | None = None,
+    ) -> None:
+        self.api_url = api_url
+        self.tracker = tracker or ConsecutiveFailureTracker(name="met_weather_api", max_failures=10)
 
-    try:
-        res = session.get(
-            MET_LOCATIONFORECAST_URL,
-            headers=headers,
-            params=params,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        if res.status_code != 200:
-            logger.warning("MET API returned HTTP %s for lat=%s lon=%s", res.status_code, lat, lon)
+    def fetch_weather(
+        self,
+        session: requests.Session,
+        lat: float,
+        lon: float,
+        app_config: dict[str, Any],
+    ) -> WeatherData | None:
+        user_agent = app_config.get("MET_USER_AGENT")
+        if not user_agent or not str(user_agent).strip():
+            raise ConfigError(
+                "Missing required config 'MET_USER_AGENT' in .env.\n"
+                "Meteorologisk institutt (MET Norway) requires that all clients identify themselves\n"
+                "with an application name and contact info (e.g. email or URL).\n"
+                "Example in .env: MET_USER_AGENT=\"MyTransitApp/1.0 (contact: user@example.com)\""
+            )
+
+        headers = {
+            "User-Agent": str(user_agent).strip(),
+            "Accept": "application/json",
+        }
+        params = {"lat": f"{lat:.4f}", "lon": f"{lon:.4f}"}
+
+        try:
+            res = session.get(
+                self.api_url,
+                headers=headers,
+                params=params,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+            if res.status_code != 200:
+                logger.warning("MET API returned HTTP %s for lat=%s lon=%s", res.status_code, lat, lon)
+                return None
+
+            body = res.json()
+            now_timeseries = body["properties"]["timeseries"][0]["data"]
+            instant = now_timeseries["instant"]["details"]
+            temp = instant.get("air_temperature", 0.0)
+            wind = instant.get("wind_speed", 0.0)
+            wind_gust_raw = instant.get("wind_speed_of_gust")
+            wind_gust = float(wind_gust_raw) if wind_gust_raw is not None else None
+            wind_dir = float(instant.get("wind_from_direction", 0.0))
+
+            next_1h = now_timeseries.get("next_1_hours") or now_timeseries.get("next_6_hours") or {}
+            summary = next_1h.get("summary", {})
+            raw_symbol = summary.get("symbol_code", "clearsky")
+
+            observation = WeatherData(
+                temperature_c=float(temp),
+                wind_ms=float(wind),
+                wind_gust_ms=wind_gust,
+                wind_direction_degrees=wind_dir,
+                symbol_code=raw_symbol,
+                fetched_at_iso=arrow.now().isoformat(),
+            )
+
+            self.tracker.record_success()
+            return observation
+        except ConfigError:
+            raise
+        except (requests.RequestException, ValueError, KeyError) as e:
+            self.tracker.record_failure(e)
             return None
 
-        body = res.json()
-        now_timeseries = body["properties"]["timeseries"][0]["data"]
-        instant = now_timeseries["instant"]["details"]
-        temp = instant.get("air_temperature", 0.0)
-        wind = instant.get("wind_speed", 0.0)
-        wind_gust_raw = instant.get("wind_speed_of_gust")
-        wind_gust = float(wind_gust_raw) if wind_gust_raw is not None else None
-        wind_dir = float(instant.get("wind_from_direction", 0.0))
 
-        next_1h = now_timeseries.get("next_1_hours") or now_timeseries.get("next_6_hours") or {}
-        summary = next_1h.get("summary", {})
-        raw_symbol = summary.get("symbol_code", "clearsky")
+class WeatherService:
+    """
+    Coordinates weather lookups using a cache-first approach.
+    Caching is mandatory to respect upstream rate limits and fair-use policies.
+    Queries the underlying WeatherProvider only on cache misses or expirations.
+    """
 
-        observation = WeatherData(
-            temperature_c=float(temp),
-            wind_ms=float(wind),
-            wind_gust_ms=wind_gust,
-            wind_direction_degrees=wind_dir,
-            symbol_code=raw_symbol,
-            fetched_at_iso=arrow.now().isoformat(),
-        )
+    def __init__(
+        self,
+        cache: WeatherCache,
+        provider: WeatherProvider | None = None,
+    ) -> None:
+        if cache is None:
+            raise ValueError("A valid WeatherCache instance is mandatory for WeatherService.")
+        self.cache: WeatherCache = cache
+        self.provider: WeatherProvider = provider if provider is not None else MetWeatherAdapter()
 
-        weather_cache.save_weather(lat, lon, observation)
-        met_api_tracker.record_success()
+    def get_weather(
+        self,
+        session: requests.Session,
+        lat: float,
+        lon: float,
+        app_config: dict[str, Any],
+    ) -> WeatherData | None:
+        cached = self.cache.get_weather(lat, lon)
+        if cached is not None:
+            return cached
+
+        observation = self.provider.fetch_weather(session, lat, lon, app_config)
+        if observation is not None:
+            self.cache.save_weather(lat, lon, observation)
+
         return observation
-    except ConfigError:
-        raise
-    except (requests.RequestException, ValueError, KeyError) as e:
-        met_api_tracker.record_failure(e)
-        return None
 
+
+# Default service instance constructed explicitly with its own cache
+default_weather_service = WeatherService(cache=WeatherCache())
