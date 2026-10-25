@@ -14,6 +14,7 @@ The interface is localized in **Norwegian**, **Swedish**, **Finnish**, and **Eng
 ## Features
 
 - **Multi-language UI (i18n)**: Native support for Norwegian (`no`), Swedish (`sv`), Finnish (`fi`), and English (`en`) selectable via `--lang <lang>` or `LANGUAGE=<lang>` in `.env` / `config.toml`.
+- **Culturally Aware Rapid Transit Naming**: Intelligently identifies metro and tram networks across Nordic and European cities to display culturally authentic local names (endonyms) or visitor exonyms (e.g. Oslo: *T-bane*, Stockholm: *T-bana*, Bergen: *Bybanen*, Tampere: *Ratikka*, London: *Tube* / *Tuben*, Berlin: *U-Bahn*). Finnish speakers viewing Oslo stations will see *Metro*, and in Bergen *Pikaspora*.
 - **Real-time Countdown & Delays**: Accurate minute counts and schedule deviations with aligned status indicators.
 - **Local Weather & Wind Direction**: Automatically displays temperature, wind speed, gusts, 16-point localized compass headings, and weather condition emojis from MET Norway Locationforecast 2.0.
 - **Interactive Terminal Hyperlinks**: Click directly on stop headers or map pins to view detailed weather forecasts on Yr.no (via OSC 8 terminal hyperlinks).
@@ -108,10 +109,20 @@ Application layout, column widths, lookup time ranges, and styling can be custom
 
 ```toml
 [display]
-destination_max_width = 50   # Truncates destination text to keep time columns aligned
+destination_max_width = 27   # Truncates destination text to keep time columns aligned
+transport_mode_max_width = 7 # Truncates long mode names with dot (e.g. Spårvagn -> Spårv.)
 terminal_width = 95          # Header and border line width
 terminal_style = "modern"    # "modern" (colors/emojis) or "classic" (ASCII)
 language = "en"
+transit_naming_style = "cultural" # "cultural", "original", or "generic"
+
+# Optional global overrides:
+# [display.mode_overrides]
+# metro = "T"
+
+# Optional system-specific overrides:
+# [display.system_overrides]
+# "oslo_ruter.metro" = "T"
 
 [query]
 time_range_seconds = 5400    # Lookahead time window (90 minutes)
@@ -145,7 +156,13 @@ Workinnmarka skole = "NSR:StopPlace:53105"
 [work]
 Forskningsparken = "NSR:StopPlace:9912"
 
-[helsinki]
+# Sections support optional comma-separated flags, e.g.:
+# - use_normalized_names=true/false
+# - transit_naming=cultural/original/generic
+[bergen, transit_naming=original]
+Byparken = "NSR:StopPlace:59983"
+
+[helsinki, use_normalized_names=false]
 Rautatientori = "HSL:1040101"
 Kamppi = "HSL:1020455"
 ```
@@ -170,6 +187,61 @@ uv run avgangstider --work
 
 # See all available generated profiles and options
 uv run avgangstider --help
+```
+
+---
+
+## Culturally Aware Transit Naming & Overrides
+
+Public transit systems (especially metros, trams, and rapid transit) have proud, distinctive local identities. `avgangstider` includes a dedicated transit identities subsystem that automatically recognizes networks by stop ID prefix or geographic coordinates:
+
+| Transit Network | City | Authentic Local Name | Supported Exonyms (by language) |
+| :--- | :--- | :--- | :--- |
+| **Oslo Ruter** | Oslo, Norway | `T-bane`, `Trikk` | `no`: T-bane / Trikk, `sv`: T-bana / Spårv., `fi`: **Metro** / Ratikka, `en`: T-bane / Tram |
+| **Bergen Skyss** | Bergen, Norway | `Bybanen` | `no`: Bybanen, `sv`: Bybanan, `fi`: **Pikaspora**, `en`: Light rail |
+| **Trondheim AtB** | Trondheim, Norway | `Gråkallbanen` / `Trikk` | `no`: Gråkallbanen, `sv`: Spårv., `fi`: Ratikka, `en`: Tram |
+| **Helsinki HSL** | Helsinki, Finland | `Metro`, `Spora` | `fi`: Metro / Spora, `sv`: Metro / Spårv., `no`: Metro / Trikk, `en`: Metro / Tram |
+| **Tampere Ratikka** | Tampere, Finland | `Ratikka` | `fi`: Ratikka, `sv`: Spårv., `no`: Trikk, `en`: Tram |
+| **Stockholm SL** | Stockholm, Sweden | `T-bana`, `Spårvagn` | `sv`: T-bana / Spårv., `no`: T-bana / Trikk, `fi`: Metro / Ratikka, `en`: Metro / Tram |
+| **London TfL** | London, UK | `Tube` | `en`: Tube, `no`: **Tuben**, `sv`: **Tuben**, `fi`: Metro |
+| **Berlin BVG** | Berlin, Germany | `U-Bahn` | `de`/`no`/`sv`/`en`: U-Bahn, `fi`: Metro |
+
+### Naming Modes (`transit_naming_style`)
+
+Configurable globally in `config.toml` or per-profile in `stoppesteder.txt`:
+
+1. **`cultural` (Default)**: Culturally natural naming based on the user's language. A Finnish speaker looking at Oslo stops will see `Metro` instead of the phonetically clunky `T-bane`, while seeing `Pikaspora` for Bergen's Bybane. A Norwegian in London will see `Tuben`.
+2. **`original`**: Always displays the authentic local endonym/signage (e.g. `T-bane` in Oslo, `Bybanen` in Bergen, `Tube` in London, `U-Bahn` in Berlin, `Ratikka` in Tampere) even if the UI language is different.
+3. **`generic`**: Traditional dictionary translation strictly based on selected UI language.
+
+### Custom User Overrides
+
+Users can override names globally or per-system in `config.toml`:
+
+```toml
+[display]
+# Set default naming strategy: "cultural", "original", or "generic"
+transit_naming_style = "cultural"
+
+# Transport mode column width (longer names automatically truncated with dot):
+transport_mode_max_width = 7
+
+# Global mode override:
+[display.mode_overrides]
+metro = "T"
+
+# System-specific override:
+[display.system_overrides]
+"oslo_ruter.metro" = "T"
+"helsinki_hsl.metro" = "M"
+"stockholm_sl.metro" = "T-bana"
+```
+
+And per profile in `stoppesteder.txt`:
+
+```ini
+[bergen, transit_naming=original]
+Byparken = "NSR:StopPlace:59983"
 ```
 
 ---
