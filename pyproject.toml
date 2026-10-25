@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "avgangstider-entur-python"
 version = "0.1.0"
-description = "Add your description here"
+description = "Nordic transit departure board with live weather forecast"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -13,6 +17,19 @@ dependencies = [
 
 [project.scripts]
 avgangstider = "avgangstider:main"
+
+[tool.setuptools]
+packages = ["adapters"]
+py-modules = [
+    "avgangstider",
+    "cli",
+    "config",
+    "i18n",
+    "models",
+    "presenters",
+    "resilience",
+    "weather",
+]
 
 [dependency-groups]
 dev = [
