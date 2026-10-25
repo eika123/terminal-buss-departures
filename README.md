@@ -189,7 +189,7 @@ Now you can run `avgangstider` anywhere on your system. Changes to the code or c
 
 ## Quality Assurance, Testing & Static Analysis
 
-Automated tools ensure code quality, architectural consistency, and security across the codebase.
+Automated tools ensure some minimal code quality and security across the codebase.
 
 ### Running All Tests & Analysis
 
