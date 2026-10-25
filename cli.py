@@ -25,9 +25,10 @@ from resilience import MaxConsecutiveFailuresExceeded, create_resilient_session
 def clear_terminal() -> None:
     command = "cls" if sys.platform.startswith("win") else "clear"
     try:
-        subprocess.run([command], check=True)
+        # B603 looks for command injections -- we always know what contains.
+        subprocess.run([command], check=True)  # nosec B603
     except Exception:
-        print("Unexpected error while clering terminal")
+        print("Unexpected error while clearing terminal")
         raise
 
 

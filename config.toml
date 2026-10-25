@@ -7,7 +7,7 @@
 # Maximum character width reserved for destination names in departure tables.
 # Destination names exceeding this width are truncated so that departure time
 # columns remain consistently aligned vertically.
-destination_max_width = 28
+destination_max_width = 27
 
 # Total character width for stop headers and divider lines.
 terminal_width = 95

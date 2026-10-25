@@ -46,9 +46,9 @@ class DeparturePresenter:
         match self.style:
             case TerminalStyle.MODERN:
                 emoji = TRANSPORT_EMOJIS.get(mode_key, "🚏")
-                return f"{emoji} {localized_name:<7}"
+                return f"{emoji} {localized_name:<10}"
             case _:
-                return f"{localized_name:<7}"
+                return f"{localized_name:<10}"
 
     def format_delay(self, aimed_raw: str, expected_raw: str) -> str:
         aimed = arrow.get(aimed_raw)
@@ -100,7 +100,7 @@ class DeparturePresenter:
 
             dest_display = destination[:(DESTINATION_MAX_WIDTH-1)]
             return (
-                f"{mode_str} {line_code:<5} {dest_display:<{DESTINATION_MAX_WIDTH}}  "
+                f"{mode_str} {line_code:>5}  {dest_display:<{DESTINATION_MAX_WIDTH}}  "
                 f"{time_left:>7}  {exp_str} {aim_str} {status_str}"
             )
         else:
@@ -108,7 +108,7 @@ class DeparturePresenter:
             sched_lbl = translate_international_message("scheduled", lang=self.lang)
             off_tag = translate_international_message("offline_tag", lang=self.lang)
             return (
-                f"{mode_str} {line_code:<5} {destination:{DESTINATION_MAX_WIDTH}}  "
+                f"{mode_str} {line_code:>5}  {destination:{DESTINATION_MAX_WIDTH}}  "
                 f"{clock_lbl}: {expected_clock} ({sched_lbl}: {aimed_clock}) [{off_tag}]"
             )
 

@@ -6,3 +6,5 @@ stoppesteder.txt
 avgangstider.log
 
 build
+static-analysis/
+*.svg

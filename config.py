@@ -84,9 +84,10 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
     candidates = []
     if config_toml_path:
         candidates.append(Path(config_toml_path))
-    candidates.append(Path.cwd() / "config.toml")
-    candidates.append(get_xdg_config_dir() / "config.toml")
-    candidates.append(Path(__file__).resolve().parent / "config.toml")
+    else:
+        candidates.append(Path.cwd() / "config.toml")
+        candidates.append(get_xdg_config_dir() / "config.toml")
+        candidates.append(Path(__file__).resolve().parent / "config.toml")
 
     loaded_toml = {}
     for candidate in candidates:

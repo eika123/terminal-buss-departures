@@ -276,9 +276,9 @@ TRANSPORT_EMOJIS = {
     "tram": "🚋",
     "rail": "🚆",
     "metro": "🚇",
-    "water": "⛴️ ",
-    "ferry": "⛴️ ",
-    "air": "✈️ ",
+    "water": "⛴️",
+    "ferry": "⛴️",
+    "air": "✈️",
 }
 
 WEATHER_EMOJIS = {
