@@ -283,12 +283,12 @@ Run the test suite with the consolidated script:
 
 This runs static analysis checks first and only proceeds to the unit tests if all checks pass (`set -e`).
 
-### Static Analysis & Security Scanning
+### Static Analysis, Linting & Security Scanning
 
 To run the static analysis pipeline independently:
 
 ```bash
-# Runs Pyflakes, Ruff, Bandit security scan, and Pydeps cycle detection:
+# Runs Pyflakes, Ruff, Pyright, Bandit security scan, and Pydeps cycle detection:
 ./scripts/run-static-analysis.sh
 
 # Pass --doc to also generate visual dependency diagrams in static-analysis/:
@@ -296,12 +296,36 @@ To run the static analysis pipeline independently:
 ```
 
 Included tools:
-- **[Ruff](https://astral.sh/ruff)**: Fast code linting and style formatting.
+- **[Ruff](https://astral.sh/ruff)**: Fast code linting and style formatting (PEP 8, import sorting, formatting).
 - **[Pyright](https://github.com/microsoft/pyright)**: Strict static type checking across models, protocols, and adapters.
 - **[Pyflakes](https://pypi.org/project/pyflakes/)**: Fast logical analysis (detects unused imports, undefined variables, and scope errors).
-- **[Bandit](https://bandit.readthedocs.io/)**: Security scanner that detects leaked secrets, hardcoded credentials, and unsafe function invocations.
+- **[Bandit](https://bandit.readthedocs.io/)**: Security scanner that detects leaked secrets, hardcoded credentials, and unsafe subprocess execution.
 - **[Pydeps](https://github.com/thebjorn/pydeps)**: Dependency graph verification and cycle detection (verifies that the architecture is a clean DAG). Generates `static-analysis/dependencies.svg` and `static-analysis/dependencies.json` when invoked with `--doc`.
 - **[Pytest](https://docs.pytest.org/)**: Unit, contract, and resilience test suite (`uv run pytest -v`).
+
+### Complexity, Refactoring & AI Telemetry Tools
+
+To maintain clean architecture, keep cognitive complexity low, and support AI-assisted pair programming and refactoring, the project integrates advanced code metrics and telemetry tools:
+
+- **[Radon](https://radon.readthedocs.io/)**: Measures cyclomatic complexity (CC) and maintainability metrics across functions and methods. All modules target Rank A / low B complexity, flagging anything Rank C or worse for refactoring.
+- **[Sourcery](https://sourcery.ai/)**: Static refactoring engine that inspects code quality, simplifies loops, extracts guard clauses, optimizes dictionary usage, and eliminates dead code.
+- **[Semgrep OSS](https://semgrep.dev/)**: Semantic AST pattern-matching engine detecting code smells, anti-patterns, and architectural issues across the codebase.
+- **[pytest-cov](https://pytest-cov.readthedocs.io/)**: Line and branch test coverage measurement ensuring our test coverage remains $\ge 95\%$.
+
+#### Consolidated AI Agent Telemetry Script
+
+To collect all code health and telemetry metrics in one automated step:
+
+```bash
+./scripts/run-agent-telemetry.sh
+```
+
+This executes Radon, Semgrep, Sourcery, and Pytest coverage in parallel/sequence and generates:
+- `.agents/radon_complexity.json`: Cyclomatic complexity scores for all modules.
+- `.agents/semgrep_findings.json`: Semantic code pattern findings and anti-patterns.
+- `.agents/sourcery_suggestions.csv`: Concrete refactoring suggestions.
+- `.agents/coverage.json`: Machine-readable test coverage report.
+- `.agents/ai_refactor_prompt.txt`: Synthesized refactoring prompt tailored for AI engineering agents.
 
 ### API Contract Testing & Recording (VCR.py)
 
