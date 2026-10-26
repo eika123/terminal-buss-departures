@@ -1,0 +1,53 @@
+version: "1.0"
+agent:
+  name: "SeniorSoftwareEngineer"
+  description: "Universal AI Software Engineer for terminal-buss-departures"
+  
+  # Her definerer du de ulike rollene den samme ingeniøren kan ta
+  active_persona: "refactor_mode"
+  
+  personas:
+    general_dev:
+      instructions: "Focus on adding features, fixing bugs, and writing comprehensive unit tests as requested by the user."
+    
+    refactor_mode:
+      instructions: |
+        Act as a strict code-quality optimizer. Read the combined telemetry report in 
+        `.agents/ai_refactor_prompt.txt`. Your sole goal is to eliminate code smells from 
+        Semgrep, lower the mathematical complexity from Radon, and execute the concrete 
+        refactoring diffs suggested by Sourcery.
+
+workspace:
+  root: "."
+  allowed_paths:
+    - "adapters/"
+    - "tests/"
+    - "scripts/"
+    - "*.py"
+
+lifecycle:
+  setup:
+    # Kjører telemetrien i bakgrunnen så dataene alltid er ferske hvis refactor_mode brukes
+    - command: "./scripts/run-agent-telemetry.sh"
+  
+  input:
+    prompt_file: ".agents/ai_refactor_prompt.txt"
+    skills_file: ".agents/SKILLS.md"
+
+  tools:
+    - name: "run_tests"
+      command: "./scripts/run-tests.sh"
+      description: "Executes the test suite to catch regressions."
+    
+    - name: "run_static_analysis"
+      command: "./scripts/run-static-analysis.sh"
+      description: "Runs Ruff, Pyright, and Bandit to ensure quality and security standards."
+
+    - name: "refresh_telemetry"
+      command: "./scripts/run-agent-telemetry.sh"
+      description: "Re-runs the Radon, Semgrep, and Sourcery pipeline to update reports."
+
+validation:
+  post_hooks:
+    - "./scripts/run-static-analysis.sh"
+    - "./scripts/run-tests.sh"

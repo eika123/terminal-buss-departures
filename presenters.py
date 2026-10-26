@@ -14,7 +14,7 @@ from i18n import (
     WEATHER_EMOJIS,
     translate_international_message,
 )
-from models import DepartureData, StopPlaceState, WeatherData
+from models import DepartureData, NormalizedStopData, StopPlaceState, WeatherData
 from transit_identities import detect_transit_system, resolve_transit_term
 
 
@@ -75,7 +75,7 @@ class DeparturePresenter:
                 case "Tunnelbana" if self.mode_max_width >= 5:
                     display_name = "Tunn."
                 case _:
-                    display_name = localized_name[: max(1, self.mode_max_width - 1)] + "."
+                    display_name = f"{localized_name[: max(1, self.mode_max_width - 1)]}."
         else:
             display_name = localized_name
 
@@ -92,23 +92,15 @@ class DeparturePresenter:
         diff_seconds = (expected - aimed).total_seconds()
         delay_minutes = int(diff_seconds // 60)
 
-        if self.style == TerminalStyle.MODERN:
-            if delay_minutes > 0:
-                return f"🔴 {delay_minutes} {translate_international_message('delayed', lang=self.lang)}"
-            elif delay_minutes < 0:
-                return f"💚 {abs(delay_minutes)} {translate_international_message('early', lang=self.lang)}"
-            else:
-                return f"💚 {translate_international_message('on_time', lang=self.lang)}"
-        else:
-            red = "\033[91m"
-            green = "\033[92m"
-            reset = "\033[0m"
-            if delay_minutes > 0:
-                return f"{red}[!] {delay_minutes} {translate_international_message('delayed', lang=self.lang)}{reset}"
-            elif delay_minutes < 0:
-                return f"{green}[+] {abs(delay_minutes)} {translate_international_message('early', lang=self.lang)}{reset}"
-            else:
-                return f"{green}[V] {translate_international_message('on_time', lang=self.lang)}{reset}"
+        if delay_minutes > 0:
+            msg = f"{delay_minutes} {translate_international_message('delayed', lang=self.lang)}"
+            return f"🔴 {msg}" if self.style == TerminalStyle.MODERN else f"\033[91m[!] {msg}\033[0m"
+        if delay_minutes < 0:
+            msg = f"{abs(delay_minutes)} {translate_international_message('early', lang=self.lang)}"
+            return f"💚 {msg}" if self.style == TerminalStyle.MODERN else f"\033[92m[+] {msg}\033[0m"
+
+        msg = translate_international_message("on_time", lang=self.lang)
+        return f"💚 {msg}" if self.style == TerminalStyle.MODERN else f"\033[92m[V] {msg}\033[0m"
 
     def format_departure_row(
         self, dep: DepartureData, has_fresh_data: bool, system_id: str | None = None
@@ -257,6 +249,27 @@ class StopPlacePresenter:
             header_text = f" {display_name}{weather_text} "
             print(f"{header_text:-^{self.terminal_width}}📍")
 
+    def _render_not_found(self, state: StopPlaceState, prov_id: str, yellow: str, reset: str) -> bool:
+        icon = "❓" if self.style != TerminalStyle.CLASSIC else "[?]"
+        err_msg = translate_international_message(
+            "stop_not_found", lang=self.lang, id=state.clean_id, provider=prov_id
+        )
+        print(f" {yellow}{icon} {err_msg}{reset}")
+        return True
+
+    def _render_api_error(self, state: StopPlaceState, prov_id: str, yellow: str, reset: str) -> bool:
+        icon = "⚠️" if self.style != TerminalStyle.CLASSIC else "[!]"
+        detalj = (state.error_message or "").split(":", 1)[1]
+        print(f" {yellow}{icon} API feil ({prov_id}): {detalj[:80]}{reset}")
+        return True
+
+    def _render_offline_warning(self, last_updated_iso: str, yellow: str, reset: str) -> bool:
+        last_time = arrow.get(last_updated_iso).format("HH:mm:ss")
+        icon = "📡" if self.style != TerminalStyle.CLASSIC else "[!]"
+        warn_msg = translate_international_message("offline_warn", lang=self.lang, time=last_time)
+        print(f" {yellow}{icon} {warn_msg}{reset}")
+        return False
+
     def render_error_message(self, state: StopPlaceState, display_name: str) -> bool:
         """
         Renders warning or error details when state.error_message is set.
@@ -268,69 +281,56 @@ class StopPlacePresenter:
 
         yellow = "\033[93m" if self.style != TerminalStyle.CLASSIC else ""
         reset = "\033[0m" if self.style != TerminalStyle.CLASSIC else ""
-
         prov_id = getattr(state.provider, "provider_id", str(state.provider))
+
         if state.error_message.startswith("NOT_FOUND:"):
-            icon = "❓" if self.style != TerminalStyle.CLASSIC else "[?]"
-            err_msg = translate_international_message(
-                "stop_not_found", lang=self.lang, id=state.clean_id, provider=prov_id
-            )
-            print(f" {yellow}{icon} {err_msg}{reset}")
-            return True
-
+            return self._render_not_found(state, prov_id, yellow, reset)
         if state.error_message.startswith("API_ERROR:"):
-            icon = "⚠️" if self.style != TerminalStyle.CLASSIC else "[!]"
-            detalj = state.error_message.split(":", 1)[1]
-            print(f" {yellow}{icon} API feil ({prov_id}): {detalj[:80]}{reset}")
-            return True
-
+            return self._render_api_error(state, prov_id, yellow, reset)
         if state.normalized_data and state.last_updated_iso:
-            last_time = arrow.get(state.last_updated_iso).format("HH:mm:ss")
-            icon = "📡" if self.style != TerminalStyle.CLASSIC else "[!]"
-            warn_msg = translate_international_message("offline_warn", lang=self.lang, time=last_time)
-            print(f" {yellow}{icon} {warn_msg}{reset}")
-            return False
+            return self._render_offline_warning(state.last_updated_iso, yellow, reset)
 
         icon = "📡" if self.style != TerminalStyle.CLASSIC else "[X]"
         err_msg = translate_international_message("offline_err", lang=self.lang, name=display_name)
         print(f" {icon} {err_msg}")
         return True
 
-    def render(self, state: StopPlaceState) -> None:
-        has_fresh_data = state.error_message is None and state.normalized_data is not None
-
+    def _resolve_display_name(self, state: StopPlaceState) -> str:
         norm = state.normalized_data
         if self.use_normalized_stop_names and norm and norm.name:
-            display_name = norm.name
-        else:
-            display_name = state.name
-        weather_text = self.weather_presenter.format_header(state.weather)
+            return norm.name
+        return state.name
 
-        yr_url: str | None = None
+    def _resolve_yr_url(self, norm: NormalizedStopData | None) -> str | None:
         if norm and norm.latitude is not None and norm.longitude is not None:
-            yr_url = f"https://www.yr.no/nb/værvarsel/daglig-tabell/{norm.latitude:.4f},{norm.longitude:.4f}"
+            return f"https://www.yr.no/nb/værvarsel/daglig-tabell/{norm.latitude:.4f},{norm.longitude:.4f}"
+        return None
+
+    def render(self, state: StopPlaceState) -> None:
+        has_fresh_data = state.error_message is None and state.normalized_data is not None
+        norm = state.normalized_data
+        display_name = self._resolve_display_name(state)
+        weather_text = self.weather_presenter.format_header(state.weather)
+        yr_url = self._resolve_yr_url(norm)
 
         self.print_weather_header_msg(yr_url, display_name, weather_text)
-
         if self.render_error_message(state, display_name):
             return
 
         if not norm:
             print(f"  {translate_international_message('no_data', lang=self.lang)}")
             return
-
-        departures = norm.departures
-        if not departures:
+        if not norm.departures:
             print(f"  {translate_international_message('no_departures', lang=self.lang)}")
             return
 
         system_id = state.transit_system_id or detect_transit_system(
             clean_id=state.clean_id,
-            latitude=norm.latitude if norm else None,
-            longitude=norm.longitude if norm else None,
+            latitude=norm.latitude,
+            longitude=norm.longitude,
         )
 
-        for dep in departures:
+        for dep in norm.departures:
             row = self.dep_presenter.format_departure_row(
                 dep, has_fresh_data=has_fresh_data, system_id=system_id
             )

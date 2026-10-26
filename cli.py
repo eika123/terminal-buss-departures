@@ -2,7 +2,10 @@ import argparse
 import subprocess
 import sys
 import time
+from pathlib import Path
+from typing import Any
 
+import requests
 from dotenv import dotenv_values
 
 from adapters import fetch_and_update_departures, resolve_stop_place_provider
@@ -37,7 +40,10 @@ def clear_terminal() -> None:
         raise
 
 
-def parse_arguments(all_profiles: dict[str, StopProfile] | None = None) -> argparse.Namespace:
+def parse_arguments(
+    all_profiles: dict[str, StopProfile] | None = None,
+    argv: list[str] | None = None,
+) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Nordic transit departure board with live weather forecast.",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -106,65 +112,58 @@ def parse_arguments(all_profiles: dict[str, StopProfile] | None = None) -> argpa
         help=f"Refresh interval in seconds (default: {DEFAULT_REFRESH_INTERVAL_SECONDS}s)",
     )
 
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    # 1. Early flag parsing to resolve custom config / stops and language
-    custom_env = None
-    custom_stops = None
-    cli_lang = None
+def _extract_flag_value(argv: list[str], flag: str) -> str | None:
+    """Finds argument value for --flag or --flag=value."""
+    for i, arg in enumerate(argv):
+        if arg == flag and i + 1 < len(argv):
+            return argv[i + 1]
+        if arg.startswith(f"{flag}="):
+            return arg.split("=", 1)[1]
+    return None
 
-    for i, arg in enumerate(sys.argv):
-        if arg == "--config" and i + 1 < len(sys.argv):
-            custom_env = sys.argv[i + 1]
-        elif arg.startswith("--config="):
-            custom_env = arg.split("=", 1)[1]
-        elif arg == "--stops" and i + 1 < len(sys.argv):
-            custom_stops = sys.argv[i + 1]
-        elif arg.startswith("--stops="):
-            custom_stops = arg.split("=", 1)[1]
-        elif arg == "--lang" and i + 1 < len(sys.argv):
-            if sys.argv[i + 1] in TRANSLATIONS:
-                cli_lang = sys.argv[i + 1]
-        elif arg.startswith("--lang="):
-            val = arg.split("=", 1)[1]
-            if val in TRANSLATIONS:
-                cli_lang = val
 
-    env_path, stops_path = resolve_config_and_stops_files(custom_env, custom_stops)
+def _parse_early_cli_options(argv: list[str]) -> tuple[str | None, str | None, str | None]:
+    """Extracts custom config, stops, and language before full argparse execution."""
+    custom_env = _extract_flag_value(argv, "--config")
+    custom_stops = _extract_flag_value(argv, "--stops")
+    raw_lang = _extract_flag_value(argv, "--lang")
+    cli_lang = raw_lang if raw_lang in TRANSLATIONS else None
+    return custom_env, custom_stops, cli_lang
 
+
+def _resolve_active_language(cli_lang: str | None, env_path: Path) -> str:
+    """Resolves active language based on early CLI flag or preliminary .env."""
     prelim_config = dotenv_values(env_path) if env_path.is_file() else {}
-    active_lang = cli_lang or prelim_config.get("LANGUAGE") or DEFAULT_LANGUAGE
-    if active_lang not in TRANSLATIONS:
-        active_lang = DEFAULT_LANGUAGE
+    lang = cli_lang or prelim_config.get("LANGUAGE") or DEFAULT_LANGUAGE
+    return lang if lang in TRANSLATIONS else DEFAULT_LANGUAGE
 
-    # 2. Check configuration file
+
+def _ensure_config_file(env_path: Path, active_lang: str) -> None:
+    """Verifies that .env configuration file exists, or prints help and exits."""
     if not env_path.is_file():
         print(translate_international_message("err_no_env", lang=active_lang, path=env_path))
         print(translate_international_message("create_env_file", lang=active_lang))
         print(f"Place it in {get_xdg_config_dir() / '.env'} or project root.")
         sys.exit(1)
 
-    app_config = dotenv_values(env_path)
 
-    # 3. Load stop places and parse full CLI arguments
-    all_profiles = load_stop_places(stops_path, lang=active_lang)
-    args = parse_arguments(all_profiles)
-
-    if args.lang and args.lang in TRANSLATIONS:
-        active_lang = args.lang
-
-    # 4. Select active profile
-    chosen_profile_name = args.profile or (args.positional_profile.lower() if args.positional_profile else None)
-
-    if chosen_profile_name:
-        if chosen_profile_name not in all_profiles:
+def _select_active_profile(
+    all_profiles: dict[str, StopProfile],
+    args: argparse.Namespace,
+    active_lang: str,
+) -> StopProfile:
+    """Resolves which profile/section to display."""
+    chosen = args.profile or (args.positional_profile.lower() if args.positional_profile else None)
+    if chosen:
+        if chosen not in all_profiles:
             available = ", ".join(f"'{p}'" for p in all_profiles)
-            print(translate_international_message("err_profile_not_found", lang=active_lang, profile=chosen_profile_name))
+            print(translate_international_message("err_profile_not_found", lang=active_lang, profile=chosen))
             print(translate_international_message("available_profiles", lang=active_lang, profiles=available))
             sys.exit(1)
-        active_profile = all_profiles[chosen_profile_name]
+        active_profile = all_profiles[chosen]
     else:
         first_profile_name = next(iter(all_profiles.keys()))
         active_profile = all_profiles[first_profile_name]
@@ -172,10 +171,13 @@ def main() -> None:
     if not active_profile.stops:
         print(translate_international_message("err_no_stops_active", lang=active_lang))
         sys.exit(1)
+    return active_profile
 
-    # 5. Prepare state per stop place with detected provider
+
+def _initialize_stops_state(stops: dict[str, str]) -> dict[str, StopPlaceState]:
+    """Creates StopPlaceState mapping for each stop place with detected provider."""
     stops_state: dict[str, StopPlaceState] = {}
-    for name, raw_id in active_profile.stops.items():
+    for name, raw_id in stops.items():
         prov, clean_id = resolve_stop_place_provider(raw_id)
         stops_state[name] = StopPlaceState(
             name=name,
@@ -183,14 +185,14 @@ def main() -> None:
             clean_id=clean_id,
             provider=prov,
         )
+    return stops_state
 
-    session = create_resilient_session(retries=3, backoff_factor=0.5)
-    clear_terminal()
 
-    # Determine use_normalized_stop_names precedence:
-    # 1. Per-profile option in section header ([hjem, use_normalized_names=false])
-    # 2. Global app setting from config.toml
-    # 3. Built-in default
+def _resolve_display_preferences(
+    active_profile: StopProfile,
+    app_config: dict[str, Any],
+) -> tuple[bool, str]:
+    """Determines normalized stop names flag and transit naming style with precedence."""
     if active_profile.use_normalized_names is not None:
         use_normalized_names = active_profile.use_normalized_names
     else:
@@ -201,28 +203,23 @@ def main() -> None:
             else bool(use_norm) if use_norm is not None else DEFAULT_USE_NORMALIZED_STOP_NAMES
         )
 
-    # Determine transit_naming_style precedence:
-    # 1. Per-profile option in section header ([helsinki, transit_naming=cultural])
-    # 2. Global app setting from config.toml
-    # 3. Built-in default
     if active_profile.transit_naming is not None:
         transit_naming_style = active_profile.transit_naming
     else:
         transit_naming_style = str(app_config.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE))
 
-    # 6. Initialize presenter
-    stop_presenter = StopPlacePresenter(
-        lang=active_lang,
-        style=TerminalStyle.MODERN,
-        terminal_width=DEFAULT_TERMINAL_WIDTH,
-        use_normalized_stop_names=use_normalized_names,
-        transport_mode_max_width=TRANSPORT_MODE_MAX_WIDTH,
-        transit_naming_style=transit_naming_style,
-        mode_overrides=MODE_OVERRIDES,
-        system_overrides=SYSTEM_OVERRIDES,
-    )
+    return use_normalized_names, transit_naming_style
 
-    # 7. Main execution loop
+
+def _run_display_loop(
+    session: requests.Session,
+    stops_state: dict[str, StopPlaceState],
+    stop_presenter: StopPlacePresenter,
+    args: argparse.Namespace,
+    app_config: dict[str, Any],
+    active_lang: str,
+) -> None:
+    """Executes the recurring departure refresh and terminal rendering loop."""
     try:
         while True:
             print(translate_international_message("fetching", lang=active_lang))
@@ -248,6 +245,39 @@ def main() -> None:
     except KeyboardInterrupt:
         print(f"\n{translate_international_message('exiting', lang=active_lang)}")
         sys.exit(0)
+
+
+def main() -> None:
+    custom_env, custom_stops, cli_lang = _parse_early_cli_options(sys.argv)
+    env_path, stops_path = resolve_config_and_stops_files(custom_env, custom_stops)
+    active_lang = _resolve_active_language(cli_lang, env_path)
+
+    _ensure_config_file(env_path, active_lang)
+    app_config = dotenv_values(env_path)
+
+    all_profiles = load_stop_places(stops_path, lang=active_lang)
+    args = parse_arguments(all_profiles)
+    if args.lang and args.lang in TRANSLATIONS:
+        active_lang = args.lang
+
+    active_profile = _select_active_profile(all_profiles, args, active_lang)
+    stops_state = _initialize_stops_state(active_profile.stops)
+    session = create_resilient_session(retries=3, backoff_factor=0.5)
+    clear_terminal()
+
+    use_norm, transit_naming = _resolve_display_preferences(active_profile, app_config)
+    stop_presenter = StopPlacePresenter(
+        lang=active_lang,
+        style=TerminalStyle.MODERN,
+        terminal_width=DEFAULT_TERMINAL_WIDTH,
+        use_normalized_stop_names=use_norm,
+        transport_mode_max_width=TRANSPORT_MODE_MAX_WIDTH,
+        transit_naming_style=transit_naming,
+        mode_overrides=MODE_OVERRIDES,
+        system_overrides=SYSTEM_OVERRIDES,
+    )
+
+    _run_display_loop(session, stops_state, stop_presenter, args, app_config, active_lang)
 
 
 if __name__ == "__main__":

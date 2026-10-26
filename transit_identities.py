@@ -159,6 +159,26 @@ TRANSIT_SYSTEM_REGISTRY: dict[str, TransitSystemIdentity] = {
 }
 
 
+TRANSIT_PREFIX_SYSTEMS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("hsl:", "hki:"), "helsinki_hsl"),
+    (("tampere:",), "tampere_ratikka"),
+    (("sl:",), "stockholm_sl"),
+    (("tfl:",), "london_tfl"),
+)
+
+TRANSIT_GEOFENCE_SYSTEMS: tuple[tuple[str, float, float, float, float], ...] = (
+    # system_id, min_lat, max_lat, min_lon, max_lon
+    ("oslo_ruter", 59.7, 60.2, 10.3, 11.2),
+    ("bergen_skyss", 60.2, 60.6, 5.1, 5.6),
+    ("trondheim_atb", 63.3, 63.6, 10.1, 10.6),
+    ("helsinki_hsl", 59.9, 60.5, 24.4, 25.3),
+    ("tampere_ratikka", 61.3, 61.7, 23.5, 24.1),
+    ("stockholm_sl", 59.1, 59.6, 17.7, 18.4),
+    ("london_tfl", 51.3, 51.7, -0.5, 0.3),
+    ("berlin_bvg", 52.3, 52.7, 13.1, 13.8),
+)
+
+
 def detect_transit_system(
     clean_id: str | None = None,
     latitude: float | None = None,
@@ -170,41 +190,45 @@ def detect_transit_system(
     """
     if clean_id:
         clean_lower = clean_id.lower().strip()
-        if clean_lower.startswith(("hsl:", "hki:")):
-            return "helsinki_hsl"
-        if clean_lower.startswith("tampere:"):
-            return "tampere_ratikka"
-        if clean_lower.startswith("sl:"):
-            return "stockholm_sl"
-        if clean_lower.startswith("tfl:"):
-            return "london_tfl"
+        for prefixes, sys_id in TRANSIT_PREFIX_SYSTEMS:
+            if clean_lower.startswith(prefixes):
+                return sys_id
 
     if latitude is not None and longitude is not None:
-        # Oslo metropolitan area
-        if 59.7 <= latitude <= 60.2 and 10.3 <= longitude <= 11.2:
-            return "oslo_ruter"
-        # Bergen metropolitan area (Bybanen)
-        if 60.2 <= latitude <= 60.6 and 5.1 <= longitude <= 5.6:
-            return "bergen_skyss"
-        # Trondheim area (Gråkallbanen)
-        if 63.3 <= latitude <= 63.6 and 10.1 <= longitude <= 10.6:
-            return "trondheim_atb"
-        # Helsinki metropolitan area
-        if 59.9 <= latitude <= 60.5 and 24.4 <= longitude <= 25.3:
-            return "helsinki_hsl"
-        # Tampere area (Tampereen ratikka)
-        if 61.3 <= latitude <= 61.7 and 23.5 <= longitude <= 24.1:
-            return "tampere_ratikka"
-        # Stockholm area
-        if 59.1 <= latitude <= 59.6 and 17.7 <= longitude <= 18.4:
-            return "stockholm_sl"
-        # London area
-        if 51.3 <= latitude <= 51.7 and -0.5 <= longitude <= 0.3:
-            return "london_tfl"
-        # Berlin area
-        if 52.3 <= latitude <= 52.7 and 13.1 <= longitude <= 13.8:
-            return "berlin_bvg"
+        for sys_id, min_lat, max_lat, min_lon, max_lon in TRANSIT_GEOFENCE_SYSTEMS:
+            if min_lat <= latitude <= max_lat and min_lon <= longitude <= max_lon:
+                return sys_id
 
+    return None
+
+
+def _resolve_cultural_term(system: TransitSystemIdentity, mode_key: str, user_lang: str) -> str | None:
+    """Resolves mode name based on cultural exonym or local name."""
+    try:
+        lang_enum = Language(user_lang)
+    except ValueError:
+        lang_enum = Language.EN
+
+    if mode_key in system.exonyms and lang_enum in system.exonyms[mode_key]:
+        return system.exonyms[mode_key][lang_enum]
+    return system.local_names.get(mode_key)
+
+
+def _resolve_system_term(
+    system_id: str,
+    mode_key: str,
+    user_lang: str,
+    naming_style: str,
+) -> str | None:
+    """Looks up transit mode term from transit system registry."""
+    system = TRANSIT_SYSTEM_REGISTRY.get(system_id)
+    if not system:
+        return None
+
+    if naming_style == TransitNamingStyle.ORIGINAL:
+        return system.local_names.get(mode_key)
+    if naming_style == TransitNamingStyle.CULTURAL:
+        return _resolve_cultural_term(system, mode_key, user_lang)
     return None
 
 
@@ -233,21 +257,8 @@ def resolve_transit_term(
         return mode_overrides[mode_key]
 
     # 3. System identity lookup
-    if system_id and system_id in TRANSIT_SYSTEM_REGISTRY:
-        system = TRANSIT_SYSTEM_REGISTRY[system_id]
-        if naming_style == TransitNamingStyle.ORIGINAL:
-            if mode_key in system.local_names:
-                return system.local_names[mode_key]
-        elif naming_style == TransitNamingStyle.CULTURAL:
-            try:
-                lang_enum = Language(user_lang)
-            except ValueError:
-                lang_enum = Language.EN
-
-            if mode_key in system.exonyms and lang_enum in system.exonyms[mode_key]:
-                return system.exonyms[mode_key][lang_enum]
-            if mode_key in system.local_names:
-                return system.local_names[mode_key]
+    if system_id and (term := _resolve_system_term(system_id, mode_key, user_lang, naming_style)):
+        return term
 
     # 4. Standard dictionary fallback
     fallback = translate_international_message(mode_key, lang=user_lang)

@@ -13,3 +13,10 @@ tests/cassettes/
 .pytest_cache/*
 .ruff_cache/*
 .venv
+ai_refactor_prompt.txt
+.agents/ai_refactor_prompt.txt
+.agents/coverage.json
+.agents/radon_complexity.json
+.agents/semgrep_findings.json
+.coverage
+.agents/sourcery_suggestions.csv

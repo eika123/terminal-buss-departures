@@ -13,6 +13,53 @@ from config import (
 )
 from models import DepartureData, NormalizedStopData, TransitProvider
 
+DIGITRANSIT_MODE_MAP: dict[str, str] = {
+    "BUS": "bus",
+    "TRAM": "tram",
+    "RAIL": "rail",
+    "SUBWAY": "metro",
+    "FERRY": "ferry",
+    "AIRPLANE": "air",
+}
+
+
+def _parse_digitransit_stoptimes(stoptimes: list[dict[str, Any]]) -> list[DepartureData]:
+    """Extracts DepartureData items from Digitransit stoptimesWithoutPatterns."""
+    departures: list[DepartureData] = []
+    current_time = int(time.time())
+
+    for st in stoptimes:
+        trip = st.get("trip", {})
+        route = trip.get("route", {})
+        line_code = route.get("shortName") or "?"
+        raw_mode = (route.get("mode") or "BUS").upper()
+        mode = DIGITRANSIT_MODE_MAP.get(raw_mode, "bus")
+        dest = st.get("headsign") or "unknown"
+
+        service_day = st.get("serviceDay", current_time)
+        sched_sec = st.get("scheduledDeparture", 0)
+        real_sec = st.get("realtimeDeparture", sched_sec)
+
+        aimed_iso = arrow.get(service_day + sched_sec).isoformat()
+        expected_iso = arrow.get(service_day + real_sec).isoformat()
+
+        departures.append(
+            DepartureData(
+                line_code=line_code,
+                transport_mode=mode,
+                destination=dest,
+                aimed_iso=aimed_iso,
+                expected_iso=expected_iso,
+                is_realtime=bool(st.get("realtime")),
+            )
+        )
+    return departures
+
+
+def _extract_digitransit_stop_data(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Finds first available stop or station record in Digitransit response data."""
+    return data.get("stop1") or data.get("station1") or data.get("stop2") or data.get("station2")
+
 
 class DigitransitTransitProvider(TransitProvider):
     """Transit provider for Finnish public transit via Digitransit GraphQL API (HSL or National)."""
@@ -90,7 +137,7 @@ class DigitransitTransitProvider(TransitProvider):
             headers=headers,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
-        if res.status_code in (401, 403):
+        if res.status_code in {401, 403}:
             raise ConfigError("Invalid or unauthorized 'DIGITRANSIT_SUBSCRIPTION_KEY'.")
         if res.status_code == 404:
             raise LookupError(f"Stop ID '{clean_id}' not found on Digitransit.")
@@ -100,48 +147,11 @@ class DigitransitTransitProvider(TransitProvider):
         if "errors" in body:
             raise ValueError(f"GraphQL errors: {body['errors']}")
 
-        data = body.get("data", {})
-        stop_data = data.get("stop1") or data.get("station1") or data.get("stop2") or data.get("station2")
+        stop_data = _extract_digitransit_stop_data(body.get("data", {}))
         if not stop_data:
             raise LookupError(f"Stop ID '{clean_id}' returned no stop or station data from Digitransit.")
 
-        stoptimes = stop_data.get("stoptimesWithoutPatterns", [])
-        departures: list[DepartureData] = []
-        mode_map = {
-            "BUS": "bus",
-            "TRAM": "tram",
-            "RAIL": "rail",
-            "SUBWAY": "metro",
-            "FERRY": "ferry",
-            "AIRPLANE": "air",
-        }
-
-        for st in stoptimes:
-            trip = st.get("trip", {})
-            route = trip.get("route", {})
-            line_code = route.get("shortName") or "?"
-            raw_mode = (route.get("mode") or "BUS").upper()
-            mode = mode_map.get(raw_mode, "bus")
-            dest = st.get("headsign") or "unknown"
-
-            service_day = st.get("serviceDay", int(time.time()))
-            sched_sec = st.get("scheduledDeparture", 0)
-            real_sec = st.get("realtimeDeparture", sched_sec)
-
-            aimed_iso = arrow.get(service_day + sched_sec).isoformat()
-            expected_iso = arrow.get(service_day + real_sec).isoformat()
-
-            departures.append(
-                DepartureData(
-                    line_code=line_code,
-                    transport_mode=mode,
-                    destination=dest,
-                    aimed_iso=aimed_iso,
-                    expected_iso=expected_iso,
-                    is_realtime=bool(st.get("realtime")),
-                )
-            )
-
+        departures = _parse_digitransit_stoptimes(stop_data.get("stoptimesWithoutPatterns", []))
         lat = stop_data.get("lat")
         lon = stop_data.get("lon")
         return NormalizedStopData(

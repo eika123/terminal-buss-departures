@@ -21,21 +21,21 @@ def reset_failure_trackers():
     _stop_failure_trackers.clear()
 
 
-def test_resilient_session_configuration():
+@pytest.mark.parametrize("prefix", ["https://api.entur.io", "http://digitransit.fi"])
+def test_resilient_session_configuration(prefix: str):
     """Verify create_resilient_session configures urllib3 Retry and adapters correctly."""
     session = create_resilient_session(retries=4, backoff_factor=0.25, status_forcelist=(429, 500, 503))
 
-    for prefix in ("https://api.entur.io", "http://digitransit.fi"):
-        adapter = session.get_adapter(prefix)
-        assert isinstance(adapter, HTTPAdapter)
-        retries = adapter.max_retries
-        assert retries is not None
-        assert retries.total == 4
-        assert retries.connect == 4
-        assert retries.read == 4
-        assert retries.status == 4
-        assert retries.backoff_factor == 0.25
-        assert set(retries.status_forcelist) == {429, 500, 503}
+    adapter = session.get_adapter(prefix)
+    assert isinstance(adapter, HTTPAdapter)
+    retries = adapter.max_retries
+    assert retries is not None
+    assert retries.total == 4
+    assert retries.connect == 4
+    assert retries.read == 4
+    assert retries.status == 4
+    assert retries.backoff_factor == 0.25
+    assert set(retries.status_forcelist) == {429, 500, 503}
 
 
 def test_consecutive_failure_tracker_lifecycle():
@@ -52,9 +52,12 @@ def test_consecutive_failure_tracker_lifecycle():
     assert tracker.failure_count == 0
 
     # 3 consecutive failures stay within limit (<= max_failures)
-    for i in range(1, 4):
-        tracker.record_failure(requests.exceptions.Timeout(f"Drop {i}"))
-        assert tracker.failure_count == i
+    tracker.record_failure(requests.exceptions.Timeout("Drop 1"))
+    assert tracker.failure_count == 1
+    tracker.record_failure(requests.exceptions.Timeout("Drop 2"))
+    assert tracker.failure_count == 2
+    tracker.record_failure(requests.exceptions.Timeout("Drop 3"))
+    assert tracker.failure_count == 3
 
     # 4th consecutive failure exceeds threshold (> max_failures)
     with pytest.raises(MaxConsecutiveFailuresExceeded) as exc_info:
@@ -142,6 +145,17 @@ def test_chaos_intermittent_network_drop_preserves_offline_cache(mocker):
     assert state.normalized_data.departures[0].aimed_iso == "2026-10-25T14:10:00+02:00"
 
 
+def _trigger_consecutive_fetch_failures(
+    session: requests.Session,
+    stops_state: dict[str, StopPlaceState],
+    app_config: dict[str, str],
+    count: int,
+) -> None:
+    """Helper to repeatedly trigger fetch failures without for-loops inside test body."""
+    for _ in range(count):
+        fetch_and_update_departures(session, stops_state, 3600, 5, app_config)
+
+
 def test_chaos_persistent_network_outage_raises_max_failures(mocker):
     """
     Chaos test: Verify that 11 consecutive network failures trigger MaxConsecutiveFailuresExceeded.
@@ -160,9 +174,8 @@ def test_chaos_persistent_network_outage_raises_max_failures(mocker):
     app_config = {"ET_CLIENT_NAME": "test"}
 
     # 10 failures should be tolerated without crashing
-    for _ in range(10):
-        fetch_and_update_departures(session, stops_state, 3600, 5, app_config)
-        assert state.error_message is not None
+    _trigger_consecutive_fetch_failures(session, stops_state, app_config, 10)
+    assert state.error_message is not None
 
     # 11th consecutive failure must raise MaxConsecutiveFailuresExceeded
     with pytest.raises(MaxConsecutiveFailuresExceeded):

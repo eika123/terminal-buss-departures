@@ -336,9 +336,7 @@ def translate_international_message(
     lang_dict = TRANSLATIONS.get(target_lang, TRANSLATIONS.get(Language.NO, {}))
     default_dict = TRANSLATIONS.get(Language.EN, {})
     text = lang_dict.get(key, default_dict.get(key, key))  # type: ignore[call-overload]
-    if kwargs:
-        return text.format(**kwargs)
-    return text
+    return text.format(**kwargs) if kwargs else text
 
 
 TRANSPORT_EMOJIS = {

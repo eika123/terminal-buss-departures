@@ -7,6 +7,45 @@ import requests
 from config import ENTUR_GRAPHQL_URL, REQUEST_TIMEOUT_SECONDS, ConfigError
 from models import DepartureData, NormalizedStopData, TransitProvider
 
+ENTUR_MODE_MAP: dict[str, str] = {
+    "coach": "bus",
+    "tram": "tram",
+    "rail": "rail",
+    "metro": "metro",
+    "water": "ferry",
+    "air": "air",
+}
+
+
+def _parse_entur_calls(calls: list[dict[str, Any]]) -> list[DepartureData]:
+    """Extracts DepartureData items from Entur estimatedCalls."""
+    departures: list[DepartureData] = []
+    for call in calls:
+        journey = call.get("serviceJourney", {})
+        pattern = journey.get("journeyPattern", {})
+        line = pattern.get("line", {})
+        line_code = line.get("publicCode") or "?"
+        raw_mode = (line.get("transportMode") or "bus").lower()
+        mode = ENTUR_MODE_MAP.get(raw_mode, "bus")
+        dest = call.get("destinationDisplay", {}).get("frontText") or "unknown"
+
+        aimed = call.get("aimedDepartureTime") or call.get("aimedArrivalTime")
+        expected = call.get("expectedDepartureTime") or call.get("expectedArrivalTime")
+        if not aimed or not expected:
+            continue
+
+        departures.append(
+            DepartureData(
+                line_code=line_code,
+                transport_mode=mode,
+                destination=dest,
+                aimed_iso=aimed,
+                expected_iso=expected,
+                is_realtime=bool(call.get("realtime")),
+            )
+        )
+    return departures
+
 
 class EnturTransitProvider(TransitProvider):
     """Transit provider for Norwegian public transit via Entur's JourneyPlanner GraphQL API."""
@@ -92,42 +131,7 @@ class EnturTransitProvider(TransitProvider):
         if not stop_place:
             raise LookupError(f"Stop ID '{clean_id}' returned no stopPlace data from Entur.")
 
-        calls = stop_place.get("estimatedCalls", [])
-        departures: list[DepartureData] = []
-        for call in calls:
-            journey = call.get("serviceJourney", {})
-            pattern = journey.get("journeyPattern", {})
-            line = pattern.get("line", {})
-            line_code = line.get("publicCode") or "?"
-            raw_mode = (line.get("transportMode") or "bus").lower()
-
-            mode_map = {
-                "coach": "bus",
-                "tram": "tram",
-                "rail": "rail",
-                "metro": "metro",
-                "water": "ferry",
-                "air": "air",
-            }
-            mode = mode_map.get(raw_mode, "bus")
-            dest = call.get("destinationDisplay", {}).get("frontText") or "unknown"
-
-            aimed = call.get("aimedDepartureTime") or call.get("aimedArrivalTime")
-            expected = call.get("expectedDepartureTime") or call.get("expectedArrivalTime")
-            if not aimed or not expected:
-                continue
-
-            departures.append(
-                DepartureData(
-                    line_code=line_code,
-                    transport_mode=mode,
-                    destination=dest,
-                    aimed_iso=aimed,
-                    expected_iso=expected,
-                    is_realtime=bool(call.get("realtime")),
-                )
-            )
-
+        departures = _parse_entur_calls(stop_place.get("estimatedCalls", []))
         lat = stop_place.get("latitude")
         lon = stop_place.get("longitude")
         return NormalizedStopData(

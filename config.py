@@ -43,19 +43,14 @@ DIGITRANSIT_FINLAND_URL = "https://api.digitransit.fi/routing/v2/finland/gtfs/v1
 
 def get_xdg_config_dir() -> Path:
     """Returns ~/.config/avgangstider or $XDG_CONFIG_HOME/avgangstider."""
-    xdg = os.environ.get("XDG_CONFIG_HOME")
-    if xdg:
-        return Path(xdg) / "avgangstider"
-    return Path.home() / ".config" / "avgangstider"
+    base = Path(xdg) if (xdg := os.environ.get("XDG_CONFIG_HOME")) else Path.home() / ".config"
+    return base / "avgangstider"
 
 
 def get_xdg_cache_dir() -> Path:
     """Returns ~/.cache/avgangstider or $XDG_CACHE_HOME/avgangstider."""
-    xdg = os.environ.get("XDG_CACHE_HOME")
-    if xdg:
-        path = Path(xdg) / "avgangstider"
-    else:
-        path = Path.home() / ".cache" / "avgangstider"
+    base = Path(xdg) if (xdg := os.environ.get("XDG_CACHE_HOME")) else Path.home() / ".cache"
+    path = base / "avgangstider"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -90,9 +85,11 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
     if config_toml_path:
         candidates.append(Path(config_toml_path))
     else:
-        candidates.append(Path.cwd() / "config.toml")
-        candidates.append(get_xdg_config_dir() / "config.toml")
-        candidates.append(Path(__file__).resolve().parent / "config.toml")
+        candidates.extend([
+            Path.cwd() / "config.toml",
+            get_xdg_config_dir() / "config.toml",
+            Path(__file__).resolve().parent / "config.toml",
+        ])
 
     loaded_toml = {}
     for candidate in candidates:
@@ -148,6 +145,26 @@ WEATHER_CACHE_DURATION_SECONDS = APP_SETTINGS["weather_cache_duration_seconds"]
 DEFAULT_USE_NORMALIZED_STOP_NAMES = APP_SETTINGS["use_normalized_stop_names"]
 
 
+def _is_local_dev_workspace(cwd: Path) -> bool:
+    """Checks if cwd contains our development pyproject.toml."""
+    pyproject = cwd / "pyproject.toml"
+    if not pyproject.is_file():
+        return False
+    try:
+        content = pyproject.read_text(encoding="utf-8")
+        return 'name = "avgangstider-entur-python"' in content
+    except Exception:
+        print("error when looking for config file")
+        raise
+
+
+def _resolve_fallback_file(custom: str | None, xdg_path: Path, cwd_path: Path) -> Path:
+    """Helper to resolve a specific file from custom CLI flag, XDG, or cwd."""
+    if custom:
+        return Path(custom)
+    return xdg_path if xdg_path.is_file() else cwd_path
+
+
 def resolve_config_and_stops_files(
     custom_env: str | None = None, custom_stops: str | None = None
 ) -> tuple[Path, Path]:
@@ -162,30 +179,101 @@ def resolve_config_and_stops_files(
         return Path(custom_env), Path(custom_stops)
 
     cwd = Path.cwd()
-    pyproject = cwd / "pyproject.toml"
-    is_local_dev = False
-    if pyproject.is_file():
-        try:
-            content = pyproject.read_text(encoding="utf-8")
-            if 'name = "avgangstider-entur-python"' in content:
-                is_local_dev = True
-        except Exception:
-            print("error when looking for config file")
-            raise
-
-    if is_local_dev and (cwd / ".env").is_file() and (cwd / "stoppesteder.txt").is_file():
+    if _is_local_dev_workspace(cwd) and (cwd / ".env").is_file() and (cwd / "stoppesteder.txt").is_file():
         env_file = Path(custom_env) if custom_env else cwd / ".env"
         stops_file = Path(custom_stops) if custom_stops else cwd / "stoppesteder.txt"
         return env_file, stops_file
 
     xdg_dir = get_xdg_config_dir()
-    xdg_env = xdg_dir / ".env"
-    xdg_stops = xdg_dir / "stoppesteder.txt"
-
-    env_file = Path(custom_env) if custom_env else (xdg_env if xdg_env.is_file() else cwd / ".env")
-    stops_file = Path(custom_stops) if custom_stops else (xdg_stops if xdg_stops.is_file() else cwd / "stoppesteder.txt")
-
+    env_file = _resolve_fallback_file(custom_env, xdg_dir / ".env", cwd / ".env")
+    stops_file = _resolve_fallback_file(custom_stops, xdg_dir / "stoppesteder.txt", cwd / "stoppesteder.txt")
     return env_file, stops_file
+
+
+def _handle_missing_stops_file(file_path: Path, lang: str | None) -> None:
+    """Displays user-friendly guidance when stoppesteder.txt is missing, then exits."""
+    print(translate_international_message("err_no_stops_file", lang=lang, path=file_path))
+    print(translate_international_message("create_stops_file", lang=lang))
+    print(translate_international_message("see_example_file", lang=lang))
+    print(translate_international_message("find_stops_url", lang=lang))
+    sys.exit(1)
+
+
+def _parse_profile_header(
+    header_content: str,
+) -> tuple[str, bool | None, str | None, dict[str, str]] | None:
+    """Parses profile section header, returning (profile_name, use_norm_opt, transit_naming_opt, options_dict)."""
+    parts = [p.strip() for p in header_content.split(",")]
+    profile_name = parts[0].strip().lower()
+    if not profile_name:
+        return None
+
+    use_norm_opt: bool | None = None
+    transit_naming_opt: str | None = None
+    options_dict: dict[str, str] = {}
+
+    for opt in parts[1:]:
+        if "=" in opt:
+            opt_key, opt_val = opt.split("=", 1)
+            opt_key = opt_key.strip().lower()
+            opt_val = opt_val.strip().lower()
+            options_dict[opt_key] = opt_val
+            if opt_key in ("use_normalized_names", "use_normalized_stop_names"):
+                use_norm_opt = opt_val in ("true", "1", "yes")
+            elif opt_key in ("transit_naming", "transit_naming_style"):
+                transit_naming_opt = opt_val
+
+    return profile_name, use_norm_opt, transit_naming_opt, options_dict
+
+
+def _update_or_create_profile(
+    profiles: dict[str, StopProfile],
+    profile_name: str,
+    use_norm_opt: bool | None,
+    transit_naming_opt: str | None,
+    options_dict: dict[str, str],
+) -> None:
+    """Updates existing StopProfile or adds a new one to profiles dict."""
+    if profile_name not in profiles:
+        profiles[profile_name] = StopProfile(
+            name=profile_name,
+            stops={},
+            use_normalized_names=use_norm_opt,
+            transit_naming=transit_naming_opt,
+            options=options_dict,
+        )
+    else:
+        if use_norm_opt is not None:
+            profiles[profile_name].use_normalized_names = use_norm_opt
+        if transit_naming_opt is not None:
+            profiles[profile_name].transit_naming = transit_naming_opt
+        profiles[profile_name].options.update(options_dict)
+
+
+def _parse_stop_entry(line: str) -> tuple[str, str] | None:
+    """Parses 'name = id' line into cleaned (name, id) tuple."""
+    if "=" not in line:
+        return None
+    name, nsr_id = line.split("=", 1)
+    return name.strip().strip('"').strip("'"), nsr_id.strip().strip('"').strip("'")
+
+
+def _process_header_line(
+    line: str,
+    line_no: int,
+    file_path: Path,
+    lang: str | None,
+    profiles: dict[str, StopProfile],
+) -> str:
+    """Validates and processes a section header line, returning active profile name."""
+    header_content = line[1:-1].strip()
+    parsed = _parse_profile_header(header_content) if header_content else None
+    if not parsed:
+        print(translate_international_message("err_empty_section", lang=lang, line=line_no, path=file_path))
+        sys.exit(1)
+    profile_name, use_norm, transit_naming, options = parsed
+    _update_or_create_profile(profiles, profile_name, use_norm, transit_naming, options)
+    return profile_name
 
 
 def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, StopProfile]:
@@ -197,11 +285,7 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
     Returns: {'home': StopProfile(name='home', stops={...}, use_normalized_names=False), ...}
     """
     if not file_path.is_file():
-        print(translate_international_message("err_no_stops_file", lang=lang, path=file_path))
-        print(translate_international_message("create_stops_file", lang=lang))
-        print(translate_international_message("see_example_file", lang=lang))
-        print(translate_international_message("find_stops_url", lang=lang))
-        sys.exit(1)
+        _handle_missing_stops_file(file_path, lang)
 
     profiles: dict[str, StopProfile] = {}
     active_profile_name: str | None = None
@@ -210,52 +294,11 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
         with open(file_path, "r", encoding="utf-8") as f:
             for line_no, line in enumerate(f, start=1):
                 line = line.strip()
-
                 if not line or line.startswith("#"):
                     continue
 
                 if line.startswith("[") and line.endswith("]"):
-                    header_content = line[1:-1].strip()
-                    if not header_content:
-                        print(translate_international_message("err_empty_section", lang=lang, line=line_no, path=file_path))
-                        sys.exit(1)
-
-                    # Parse header parts, e.g. "hjem, use_normalized_names=false"
-                    parts = [p.strip() for p in header_content.split(",")]
-                    profile_name = parts[0].strip().lower()
-                    if not profile_name:
-                        print(translate_international_message("err_empty_section", lang=lang, line=line_no, path=file_path))
-                        sys.exit(1)
-
-                    use_norm_opt: bool | None = None
-                    transit_naming_opt: str | None = None
-                    options_dict: dict[str, str] = {}
-                    for opt in parts[1:]:
-                        if "=" in opt:
-                            opt_key, opt_val = opt.split("=", 1)
-                            opt_key = opt_key.strip().lower()
-                            opt_val = opt_val.strip().lower()
-                            options_dict[opt_key] = opt_val
-                            if opt_key in ("use_normalized_names", "use_normalized_stop_names"):
-                                use_norm_opt = opt_val in ("true", "1", "yes")
-                            elif opt_key in ("transit_naming", "transit_naming_style"):
-                                transit_naming_opt = opt_val
-
-                    active_profile_name = profile_name
-                    if active_profile_name not in profiles:
-                        profiles[active_profile_name] = StopProfile(
-                            name=active_profile_name,
-                            stops={},
-                            use_normalized_names=use_norm_opt,
-                            transit_naming=transit_naming_opt,
-                            options=options_dict,
-                        )
-                    else:
-                        if use_norm_opt is not None:
-                            profiles[active_profile_name].use_normalized_names = use_norm_opt
-                        if transit_naming_opt is not None:
-                            profiles[active_profile_name].transit_naming = transit_naming_opt
-                        profiles[active_profile_name].options.update(options_dict)
+                    active_profile_name = _process_header_line(line, line_no, file_path, lang, profiles)
                     continue
 
                 if "=" not in line:
@@ -266,11 +309,9 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
                     print(translate_international_message("line_missing_header", lang=lang, line=line_no, text=line))
                     sys.exit(1)
 
-                name, nsr_id = line.split("=", 1)
-                clean_name = name.strip().strip('"').strip("'")
-                clean_id = nsr_id.strip().strip('"').strip("'")
-
-                profiles[active_profile_name].stops[clean_name] = clean_id
+                if entry := _parse_stop_entry(line):
+                    clean_name, clean_id = entry
+                    profiles[active_profile_name].stops[clean_name] = clean_id
 
         if not profiles:
             print(translate_international_message("err_no_profiles_found", lang=lang, path=file_path))

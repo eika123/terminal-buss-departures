@@ -181,3 +181,71 @@ def test_stop_place_presenter_user_vs_normalized_name(capsys):
     assert "Hjemme - Østgående" in out_user
     assert "Itäkeskus (M)" not in out_user
 
+
+def test_presenter_classic_style_and_truncation(capsys):
+    """Verify classic terminal style without ANSI escapes and specific mode abbreviations."""
+    from config import TerminalStyle
+
+    # Mode abbreviation: Tunnelbana -> Tunn. when width is 5
+    pres_classic = DeparturePresenter(lang="sv", mode_max_width=5, style=TerminalStyle.CLASSIC)
+    assert pres_classic.format_transport_mode("Tunnelbana") == "Tunn."
+
+    # Delay formatting in classic mode
+    now_iso = arrow.now().isoformat()
+    delayed_iso = arrow.now().shift(minutes=+3).isoformat()
+    delay_str = pres_classic.format_delay(now_iso, delayed_iso)
+    assert "[!]" in delay_str
+    assert "forsinket" in delay_str or "försenad" in delay_str or "delayed" in delay_str
+
+    early_iso = arrow.now().shift(minutes=-2).isoformat()
+    early_str = pres_classic.format_delay(now_iso, early_iso)
+    assert "[+]" in early_str
+
+    on_time_str = pres_classic.format_delay(now_iso, now_iso)
+    assert "[V]" in on_time_str
+
+
+def test_stop_place_presenter_api_error_and_empty_departures(capsys):
+    """Verify presentation of API error banners, empty departure lists, and missing data."""
+    from config import TerminalStyle
+
+    pres = StopPlacePresenter(lang="no", style=TerminalStyle.CLASSIC)
+
+    # 1. API error banner
+    api_err_state = StopPlaceState(
+        name="Oslo S",
+        raw_id="NSR:StopPlace:58366",
+        clean_id="NSR:StopPlace:58366",
+        provider=default_entur_provider,
+        error_message="API_ERROR:Upstream service timeout",
+    )
+    pres.render(api_err_state)
+    out = capsys.readouterr().out
+    assert "API feil" in out
+    assert "Upstream service timeout" in out
+
+    # 2. Missing normalized data
+    no_data_state = StopPlaceState(
+        name="Oslo S",
+        raw_id="NSR:StopPlace:58366",
+        clean_id="NSR:StopPlace:58366",
+        provider=default_entur_provider,
+        normalized_data=None,
+    )
+    pres.render(no_data_state)
+    out = capsys.readouterr().out
+    assert "Ingen data tilgjengelig" in out
+
+    # 3. Empty departures
+    empty_deps_state = StopPlaceState(
+        name="Oslo S",
+        raw_id="NSR:StopPlace:58366",
+        clean_id="NSR:StopPlace:58366",
+        provider=default_entur_provider,
+        normalized_data=NormalizedStopData(name="Oslo S", latitude=59.91, longitude=10.75, departures=[]),
+    )
+    pres.render(empty_deps_state)
+    out = capsys.readouterr().out
+    assert "Ingen planlagte avganger" in out
+
+

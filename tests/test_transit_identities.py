@@ -1,3 +1,5 @@
+import pytest
+
 from adapters.entur import default_entur_provider
 from models import DepartureData, NormalizedStopData, StopPlaceState
 from presenters import DeparturePresenter, StopPlacePresenter
@@ -37,37 +39,71 @@ def test_detect_transit_system_by_coordinates():
     assert detect_transit_system(latitude=69.968, longitude=23.271) is None
 
 
-def test_resolve_transit_term_cultural_exonyms():
-    # Oslo T-bane
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="no", naming_style="cultural") == "T-bane"
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="sv", naming_style="cultural") == "T-bana"
-    # Crucial cultural touch: Finnish visitors refer to Oslo's T-bane as "Metro"
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="fi", naming_style="cultural") == "Metro"
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="en", naming_style="cultural") == "T-bane"
+@pytest.mark.parametrize(
+    "mode,system_id,user_lang,expected_term",
+    [
+        # Oslo T-bane
+        ("metro", "oslo_ruter", "no", "T-bane"),
+        ("metro", "oslo_ruter", "sv", "T-bana"),
+        ("metro", "oslo_ruter", "fi", "Metro"),
+        ("metro", "oslo_ruter", "en", "T-bane"),
+        # Bergen Bybanen
+        ("tram", "bergen_skyss", "no", "Bybanen"),
+        ("tram", "bergen_skyss", "fi", "Pikaspora"),
+        ("tram", "bergen_skyss", "sv", "Bybanan"),
+        # Tampere Ratikka
+        ("tram", "tampere_ratikka", "fi", "Ratikka"),
+        ("tram", "tampere_ratikka", "no", "Trikk"),
+        # London Tube
+        ("metro", "london_tfl", "en", "Tube"),
+        ("metro", "london_tfl", "no", "Tuben"),
+        ("metro", "london_tfl", "sv", "Tuben"),
+        ("metro", "london_tfl", "fi", "Metro"),
+        # Berlin U-Bahn
+        ("metro", "berlin_bvg", "en", "U-Bahn"),
+        ("metro", "berlin_bvg", "fi", "Metro"),
+    ],
+)
+def test_resolve_transit_term_cultural_exonyms(
+    mode: str, system_id: str, user_lang: str, expected_term: str
+):
+    """Verify cultural transit naming style returns authentic exonyms per user language."""
+    assert (
+        resolve_transit_term(mode, system_id, user_lang=user_lang, naming_style="cultural")
+        == expected_term
+    )
 
-    # Bergen Bybanen: Finns colloquially say "Pikaspora" (express/light tram)
-    assert resolve_transit_term("tram", "bergen_skyss", user_lang="no", naming_style="cultural") == "Bybanen"
-    assert resolve_transit_term("tram", "bergen_skyss", user_lang="fi", naming_style="cultural") == "Pikaspora"
-    assert resolve_transit_term("tram", "bergen_skyss", user_lang="sv", naming_style="cultural") == "Bybanan"
 
-    # Tampere Ratikka
-    assert resolve_transit_term("tram", "tampere_ratikka", user_lang="fi", naming_style="cultural") == "Ratikka"
-    assert resolve_transit_term("tram", "tampere_ratikka", user_lang="no", naming_style="cultural") == "Trikk"
+@pytest.mark.parametrize(
+    "mode,system_id,user_lang,expected_term",
+    [
+        ("metro", "oslo_ruter", "fi", "T-bane"),
+        ("metro", "london_tfl", "no", "Tube"),
+        ("metro", "berlin_bvg", "no", "U-Bahn"),
+        ("tram", "bergen_skyss", "fi", "Bybanen"),
+        ("tram", "tampere_ratikka", "sv", "Ratikka"),
+    ],
+)
+def test_resolve_transit_term_original_mode(
+    mode: str, system_id: str, user_lang: str, expected_term: str
+):
+    """Verify original transit naming style yields native endonyms regardless of user language."""
+    assert (
+        resolve_transit_term(mode, system_id, user_lang=user_lang, naming_style="original")
+        == expected_term
+    )
 
-    # London Tube
-    assert resolve_transit_term("metro", "london_tfl", user_lang="en", naming_style="cultural") == "Tube"
-    assert resolve_transit_term("metro", "london_tfl", user_lang="no", naming_style="cultural") == "Tuben"
-    assert resolve_transit_term("metro", "london_tfl", user_lang="sv", naming_style="cultural") == "Tuben"
-    assert resolve_transit_term("metro", "london_tfl", user_lang="fi", naming_style="cultural") == "Metro"
 
+def test_resolve_transit_term_edge_cases():
+    """Verify handling of unknown transit systems, invalid languages, and missing dictionary terms."""
+    # Unknown transit system falls back to international message translation
+    assert resolve_transit_term("metro", "non_existent_system", user_lang="no") == "T-bane"
 
-def test_resolve_transit_term_original_mode():
-    # Authentic local endonyms regardless of user language
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="fi", naming_style="original") == "T-bane"
-    assert resolve_transit_term("metro", "london_tfl", user_lang="no", naming_style="original") == "Tube"
-    assert resolve_transit_term("metro", "berlin_bvg", user_lang="no", naming_style="original") == "U-Bahn"
-    assert resolve_transit_term("tram", "bergen_skyss", user_lang="fi", naming_style="original") == "Bybanen"
-    assert resolve_transit_term("tram", "tampere_ratikka", user_lang="sv", naming_style="original") == "Ratikka"
+    # Unsupported user language code falls back to English exonym
+    assert resolve_transit_term("metro", "london_tfl", user_lang="invalid_lang") == "Tube"
+
+    # Mode not recognized in registry or dictionary falls back to capitalized mode name
+    assert resolve_transit_term("teleport", "oslo_ruter", user_lang="en") == "Teleport"
 
 
 def test_resolve_transit_term_generic_mode():

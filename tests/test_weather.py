@@ -1,5 +1,6 @@
 import arrow
 import pytest
+import requests
 
 from config import ConfigError
 from models import WeatherData
@@ -148,3 +149,20 @@ def test_weather_service_fetches_and_caches_on_miss(mocker, tmp_path):
 def test_weather_service_requires_cache():
     with pytest.raises(ValueError, match="mandatory"):
         WeatherService(cache=None)  # type: ignore
+
+
+def test_met_weather_adapter_error_handling(mocker):
+    """Verify MET Norway weather adapter handles 404 response and network errors."""
+    session = mocker.MagicMock()
+    adapter = MetWeatherAdapter()
+    app_config = {"MET_USER_AGENT": "TestApp/1.0"}
+
+    # 404 returns None (or handles location out of forecast grid)
+    mock_404 = mocker.MagicMock()
+    mock_404.status_code = 404
+    session.get.return_value = mock_404
+    assert adapter.fetch_weather(session, 0.0, 0.0, app_config) is None
+
+    # RequestException returns None without crashing
+    session.get.side_effect = requests.RequestException("DNS lookup failed")
+    assert adapter.fetch_weather(session, 60.0, 10.0, app_config) is None

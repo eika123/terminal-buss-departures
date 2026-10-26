@@ -35,6 +35,30 @@ _PROVIDER_REGISTRY: dict[str, TransitProvider] = {
 }
 
 
+COUNTRY_PREFIX_MAP: dict[str, str] = {
+    "no": "entur",
+    "fi": "digitransit_hsl",
+    "finland": "digitransit_finland",
+    "se": "resrobot",
+    "dk": "rejseplanen",
+}
+
+PREFIX_TO_PROVIDER_MAP: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("nsr:",), "entur"),
+    (("hsl:", "hki:"), "digitransit_hsl"),
+    (("tampere:", "waltti:", "matka:", "vr:"), "digitransit_finland"),
+)
+
+
+def _detect_numeric_id_provider(id_lower: str) -> str | None:
+    """Matches national stop place numbers (e.g. Sweden 74xxxxxxx, Denmark 86xxxxxx)."""
+    if not id_lower.isdigit():
+        return None
+    if len(id_lower) == 9 and id_lower.startswith("74"):
+        return "resrobot"
+    return "rejseplanen" if id_lower.startswith(("0086", "86")) else None
+
+
 def register_transit_provider(name: str, provider: TransitProvider) -> None:
     """Register or override a TransitProvider in the adapter registry."""
     _PROVIDER_REGISTRY[name] = provider
@@ -47,9 +71,7 @@ def get_transit_provider(name: str) -> TransitProvider:
     if name == "rejseplanen":
         raise NotImplementedError("Rejseplanen (Denmark) adapter requires API key configuration.")
     provider = _PROVIDER_REGISTRY.get(name)
-    if provider is None:
-        return default_entur_provider
-    return provider
+    return default_entur_provider if provider is None else provider
 
 
 def detect_provider(raw_id: str) -> tuple[str, str]:
@@ -60,31 +82,17 @@ def detect_provider(raw_id: str) -> tuple[str, str]:
     cleaned = raw_id.strip()
     id_lower = cleaned.lower()
 
-    country_map = {
-        "no": "entur",
-        "fi": "digitransit_hsl",
-        "finland": "digitransit_finland",
-        "se": "resrobot",
-        "dk": "rejseplanen",
-    }
-
     if ":" in cleaned:
         first_part, rest = cleaned.split(":", 1)
-        first_lower = first_part.strip().lower()
-        if first_lower in country_map:
-            return country_map[first_lower], rest.strip()
+        if prov := COUNTRY_PREFIX_MAP.get(first_part.strip().lower()):
+            return prov, rest.strip()
 
-    if id_lower.startswith("nsr:"):
-        return "entur", cleaned
-    if id_lower.startswith(("hsl:", "hki:")):
-        return "digitransit_hsl", cleaned
-    if id_lower.startswith(("tampere:", "waltti:", "matka:", "vr:")):
-        return "digitransit_finland", cleaned
+    for prefixes, prov_name in PREFIX_TO_PROVIDER_MAP:
+        if id_lower.startswith(prefixes):
+            return prov_name, cleaned
 
-    if id_lower.startswith("74") and len(id_lower) == 9 and id_lower.isdigit():
-        return "resrobot", cleaned
-    if id_lower.startswith(("0086", "86")) and id_lower.isdigit():
-        return "rejseplanen", cleaned
+    if num_prov := _detect_numeric_id_provider(id_lower):
+        return num_prov, cleaned
 
     return "entur", cleaned
 
