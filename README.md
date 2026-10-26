@@ -305,7 +305,7 @@ Included tools:
 
 ### Complexity, Refactoring & AI Telemetry Tools
 
-To maintain clean architecture, keep cognitive complexity low, and support AI-assisted pair programming and refactoring, the project integrates advanced code metrics and telemetry tools:
+To maintain clean architecture, keep cognitive complexity low, and support AI-assisted pair programming and refactoring, the project integrates code metrics and telemetry tools:
 
 - **[Radon](https://radon.readthedocs.io/)**: Measures cyclomatic complexity (CC) and maintainability metrics across functions and methods. All modules target Rank A / low B complexity, flagging anything Rank C or worse for refactoring.
 - **[Sourcery](https://sourcery.ai/)**: Static refactoring engine that inspects code quality, simplifies loops, extracts guard clauses, optimizes dictionary usage, and eliminates dead code.
