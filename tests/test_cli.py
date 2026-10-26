@@ -34,13 +34,21 @@ class TestCliArgumentParsing:
             (["cmd", "--config"], "--config", None),
         ],
     )
-    def test_extract_flag_value_variations(self, argv: list[str], flag: str, expected: str | None):
+    def test_extract_flag_value_variations(
+        self, argv: list[str], flag: str, expected: str | None
+    ):
         """Verify _extract_flag_value correctly parses both space-separated and equals-separated values."""
         assert _extract_flag_value(argv, flag) == expected
 
     def test_parse_early_cli_options_valid(self):
         """Verify _parse_early_cli_options correctly identifies custom configs and recognized languages."""
-        argv = ["app", "--config", "custom.env", "--stops=/tmp/my_stops.txt", "--lang=fi"]
+        argv = [
+            "app",
+            "--config",
+            "custom.env",
+            "--stops=/tmp/my_stops.txt",
+            "--lang=fi",
+        ]
         env, stops, lang = _parse_early_cli_options(argv)
         assert env == "custom.env"
         assert stops == "/tmp/my_stops.txt"
@@ -60,7 +68,15 @@ class TestCliArgumentParsing:
         }
         args = parse_arguments(
             profiles,
-            argv=["--antall", "15", "--timerange", "7200", "--intervall", "30", "--work"],
+            argv=[
+                "--antall",
+                "15",
+                "--timerange",
+                "7200",
+                "--intervall",
+                "30",
+                "--work",
+            ],
         )
         assert isinstance(args, argparse.Namespace)
         assert args.antall == 15

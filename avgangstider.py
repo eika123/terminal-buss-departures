@@ -2,6 +2,7 @@
 Main entry point for avgangstider.
 Re-exports CLI and core abstractions for backwards compatibility.
 """
+
 from cli import main
 from models import DepartureData, NormalizedStopData, StopPlaceState, WeatherData
 from presenters import DeparturePresenter, StopPlacePresenter, WeatherPresenter

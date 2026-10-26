@@ -91,11 +91,12 @@ TRANSIT_SYSTEM_REGISTRY: dict[str, TransitSystemIdentity] = {
             },
         },
     ),
-    "tampere_ratikka": TransitSystemIdentity(
-        system_id="tampere_ratikka",
+    "tampere_nysse": TransitSystemIdentity(
+        system_id="tampere_nysse",
         city="Tampere",
         country="FI",
         local_names={"tram": "Ratikka"},
+        signage_codes={"tram": "Ratikka"},
         exonyms={
             "tram": {
                 Language.FI: "Ratikka",
@@ -158,12 +159,15 @@ TRANSIT_SYSTEM_REGISTRY: dict[str, TransitSystemIdentity] = {
     ),
 }
 
+# Backward compatibility alias
+TRANSIT_SYSTEM_REGISTRY["tampere_ratikka"] = TRANSIT_SYSTEM_REGISTRY["tampere_nysse"]
+
 
 TRANSIT_PREFIX_SYSTEMS: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("hsl:", "hki:"), "helsinki_hsl"),
-    (("tampere:",), "tampere_ratikka"),
-    (("sl:",), "stockholm_sl"),
-    (("tfl:",), "london_tfl"),
+    (("hsl:", "hki:", "fi:hsl:", "fi:hki:"), "helsinki_hsl"),
+    (("tampere:", "nysse:", "fi:tampere:", "fi:nysse:"), "tampere_nysse"),
+    (("sl:", "se:sl:"), "stockholm_sl"),
+    (("tfl:", "uk:tfl:"), "london_tfl"),
 )
 
 TRANSIT_GEOFENCE_SYSTEMS: tuple[tuple[str, float, float, float, float], ...] = (
@@ -172,7 +176,7 @@ TRANSIT_GEOFENCE_SYSTEMS: tuple[tuple[str, float, float, float, float], ...] = (
     ("bergen_skyss", 60.2, 60.6, 5.1, 5.6),
     ("trondheim_atb", 63.3, 63.6, 10.1, 10.6),
     ("helsinki_hsl", 59.9, 60.5, 24.4, 25.3),
-    ("tampere_ratikka", 61.3, 61.7, 23.5, 24.1),
+    ("tampere_nysse", 61.3, 61.7, 23.5, 24.1),
     ("stockholm_sl", 59.1, 59.6, 17.7, 18.4),
     ("london_tfl", 51.3, 51.7, -0.5, 0.3),
     ("berlin_bvg", 52.3, 52.7, 13.1, 13.8),
@@ -202,7 +206,9 @@ def detect_transit_system(
     return None
 
 
-def _resolve_cultural_term(system: TransitSystemIdentity, mode_key: str, user_lang: str) -> str | None:
+def _resolve_cultural_term(
+    system: TransitSystemIdentity, mode_key: str, user_lang: str
+) -> str | None:
     """Resolves mode name based on cultural exonym or local name."""
     try:
         lang_enum = Language(user_lang)
@@ -257,11 +263,15 @@ def resolve_transit_term(
         return mode_overrides[mode_key]
 
     # 3. System identity lookup
-    if system_id and (term := _resolve_system_term(system_id, mode_key, user_lang, naming_style)):
+    if system_id and (
+        term := _resolve_system_term(system_id, mode_key, user_lang, naming_style)
+    ):
         return term
 
     # 4. Standard dictionary fallback
     fallback = translate_international_message(mode_key, lang=user_lang)
     if fallback == mode_key:
-        return mode_key.capitalize() or translate_international_message("unknown", lang=user_lang)
+        return mode_key.capitalize() or translate_international_message(
+            "unknown", lang=user_lang
+        )
     return fallback

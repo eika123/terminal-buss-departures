@@ -11,7 +11,12 @@ from config import (
     REQUEST_TIMEOUT_SECONDS,
     ConfigError,
 )
-from models import DepartureData, NormalizedStopData, TransitProvider
+from models import (
+    DepartureData,
+    NormalizedStopData,
+    TransitProvider,
+    TransitProviderKey,
+)
 
 DIGITRANSIT_MODE_MAP: dict[str, str] = {
     "BUS": "bus",
@@ -23,7 +28,9 @@ DIGITRANSIT_MODE_MAP: dict[str, str] = {
 }
 
 
-def _parse_digitransit_stoptimes(stoptimes: list[dict[str, Any]]) -> list[DepartureData]:
+def _parse_digitransit_stoptimes(
+    stoptimes: list[dict[str, Any]],
+) -> list[DepartureData]:
     """Extracts DepartureData items from Digitransit stoptimesWithoutPatterns."""
     departures: list[DepartureData] = []
     current_time = int(time.time())
@@ -58,18 +65,27 @@ def _parse_digitransit_stoptimes(stoptimes: list[dict[str, Any]]) -> list[Depart
 
 def _extract_digitransit_stop_data(data: dict[str, Any]) -> dict[str, Any] | None:
     """Finds first available stop or station record in Digitransit response data."""
-    return data.get("stop1") or data.get("station1") or data.get("stop2") or data.get("station2")
+    return (
+        data.get("stop1")
+        or data.get("station1")
+        or data.get("stop2")
+        or data.get("station2")
+    )
 
 
 class DigitransitTransitProvider(TransitProvider):
     """Transit provider for Finnish public transit via Digitransit GraphQL API (HSL or National)."""
 
-    def __init__(self, api_url: str = DIGITRANSIT_HSL_URL, provider_id: str = "digitransit_hsl"):
+    def __init__(
+        self,
+        api_url: str = DIGITRANSIT_HSL_URL,
+        provider_id: TransitProviderKey | str = "digitransit_hsl",
+    ):
         self.api_url = api_url
         self._provider_id = provider_id
 
     @property
-    def provider_id(self) -> str:
+    def provider_id(self) -> TransitProviderKey | str:
         return self._provider_id
 
     def fetch_stop(
@@ -81,8 +97,18 @@ class DigitransitTransitProvider(TransitProvider):
         app_config: dict[str, Any],
     ) -> NormalizedStopData:
         raw_id = clean_id.strip()
-        bare_id = raw_id[4:].strip() if raw_id.upper().startswith("HSL:") else raw_id
-        id_with_prefix = f"HSL:{bare_id}"
+        raw_lower = raw_id.lower()
+        if raw_lower.startswith("nysse:"):
+            bare = raw_id[6:].strip()
+            id1 = f"tampere:{bare}"
+            id2 = raw_id
+        elif ":" in raw_id and not raw_lower.startswith("hsl:"):
+            id1 = raw_id
+            id2 = raw_id
+        else:
+            bare_id = raw_id[4:].strip() if raw_lower.startswith("hsl:") else raw_id
+            id1 = bare_id
+            id2 = f"HSL:{bare_id}"
 
         raw_template = """
         query GetDepartures($id1: String!, $id2: String!, $n: Int!, $t: Int!) {
@@ -111,8 +137,8 @@ class DigitransitTransitProvider(TransitProvider):
         }
         """
         variables = {
-            "id1": bare_id,
-            "id2": id_with_prefix,
+            "id1": id1,
+            "id2": id2,
             "n": departures_count,
             "t": time_range_seconds,
         }
@@ -133,7 +159,10 @@ class DigitransitTransitProvider(TransitProvider):
 
         res = session.post(
             self.api_url,
-            json={"query": textwrap.dedent(raw_template).strip(), "variables": variables},
+            json={
+                "query": textwrap.dedent(raw_template).strip(),
+                "variables": variables,
+            },
             headers=headers,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
@@ -149,9 +178,13 @@ class DigitransitTransitProvider(TransitProvider):
 
         stop_data = _extract_digitransit_stop_data(body.get("data", {}))
         if not stop_data:
-            raise LookupError(f"Stop ID '{clean_id}' returned no stop or station data from Digitransit.")
+            raise LookupError(
+                f"Stop ID '{clean_id}' returned no stop or station data from Digitransit."
+            )
 
-        departures = _parse_digitransit_stoptimes(stop_data.get("stoptimesWithoutPatterns", []))
+        departures = _parse_digitransit_stoptimes(
+            stop_data.get("stoptimesWithoutPatterns", [])
+        )
         lat = stop_data.get("lat")
         lon = stop_data.get("lon")
         return NormalizedStopData(

@@ -88,4 +88,3 @@ def test_met_norway_live_api_contract(live_or_dummy_app_config):
     assert 0.0 <= weather.wind_direction_degrees <= 360.0
     assert weather.symbol_code != ""
     assert weather.fetched_at_iso != ""
-

@@ -4,7 +4,7 @@ agent:
   description: "Universal AI Software Engineer for terminal-buss-departures"
   
   # Her definerer du de ulike rollene den samme ingeniøren kan ta
-  active_persona: "refactor_mode"
+  active_persona: "general_dev"
   
   personas:
     general_dev:

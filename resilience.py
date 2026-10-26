@@ -28,7 +28,11 @@ class ConsecutiveFailureTracker:
 
     def record_success(self) -> None:
         if self.failure_count > 0:
-            logger.info("Service/operation '%s' recovered after %d failure(s).", self.name, self.failure_count)
+            logger.info(
+                "Service/operation '%s' recovered after %d failure(s).",
+                self.name,
+                self.failure_count,
+            )
         self.failure_count = 0
 
     def record_failure(self, error: Exception) -> None:
@@ -73,4 +77,3 @@ def create_resilient_session(
     session.mount("https://", adapter)
     session.mount("http://", adapter)
     return session
-

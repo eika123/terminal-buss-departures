@@ -1,7 +1,15 @@
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 import requests
 from pydantic import BaseModel, ConfigDict, Field
+
+TransitProviderKey = Literal[
+    "entur",
+    "digitransit_hsl",
+    "digitransit_finland",
+    "resrobot",
+    "rejseplanen",
+]
 
 
 class WeatherData(BaseModel):
@@ -40,7 +48,7 @@ class TransitProvider(Protocol):
     """Protocol for fetching normalized departure data from a transit authority API."""
 
     @property
-    def provider_id(self) -> str:
+    def provider_id(self) -> TransitProviderKey | str:
         """Unique identifier of the transit provider (e.g. 'entur', 'digitransit_hsl')."""
         ...
 

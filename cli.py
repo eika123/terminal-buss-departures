@@ -35,9 +35,10 @@ def clear_terminal() -> None:
     try:
         # B603 looks for command injections -- we always know what contains.
         subprocess.run([command], check=True)  # nosec B603
-    except Exception:
-        print("Unexpected error while clearing terminal")
-        raise
+    except (subprocess.SubprocessError, FileNotFoundError):
+        # Fallback to ANSI clear if terminal is non-interactive or clear binary missing
+        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.flush()
 
 
 def parse_arguments(
@@ -95,7 +96,7 @@ def parse_arguments(
         "--timerange",
         type=int,
         default=DEFAULT_TIME_RANGE_SECONDS,
-        help=f"Lookahead window in seconds (default: {DEFAULT_TIME_RANGE_SECONDS}s = {DEFAULT_TIME_RANGE_SECONDS//60}m)",
+        help=f"Lookahead window in seconds (default: {DEFAULT_TIME_RANGE_SECONDS}s = {DEFAULT_TIME_RANGE_SECONDS // 60}m)",
     )
 
     parser.add_argument(
@@ -125,7 +126,9 @@ def _extract_flag_value(argv: list[str], flag: str) -> str | None:
     return None
 
 
-def _parse_early_cli_options(argv: list[str]) -> tuple[str | None, str | None, str | None]:
+def _parse_early_cli_options(
+    argv: list[str],
+) -> tuple[str | None, str | None, str | None]:
     """Extracts custom config, stops, and language before full argparse execution."""
     custom_env = _extract_flag_value(argv, "--config")
     custom_stops = _extract_flag_value(argv, "--stops")
@@ -144,7 +147,11 @@ def _resolve_active_language(cli_lang: str | None, env_path: Path) -> str:
 def _ensure_config_file(env_path: Path, active_lang: str) -> None:
     """Verifies that .env configuration file exists, or prints help and exits."""
     if not env_path.is_file():
-        print(translate_international_message("err_no_env", lang=active_lang, path=env_path))
+        print(
+            translate_international_message(
+                "err_no_env", lang=active_lang, path=env_path
+            )
+        )
         print(translate_international_message("create_env_file", lang=active_lang))
         print(f"Place it in {get_xdg_config_dir() / '.env'} or project root.")
         sys.exit(1)
@@ -156,12 +163,22 @@ def _select_active_profile(
     active_lang: str,
 ) -> StopProfile:
     """Resolves which profile/section to display."""
-    chosen = args.profile or (args.positional_profile.lower() if args.positional_profile else None)
+    chosen = args.profile or (
+        args.positional_profile.lower() if args.positional_profile else None
+    )
     if chosen:
         if chosen not in all_profiles:
             available = ", ".join(f"'{p}'" for p in all_profiles)
-            print(translate_international_message("err_profile_not_found", lang=active_lang, profile=chosen))
-            print(translate_international_message("available_profiles", lang=active_lang, profiles=available))
+            print(
+                translate_international_message(
+                    "err_profile_not_found", lang=active_lang, profile=chosen
+                )
+            )
+            print(
+                translate_international_message(
+                    "available_profiles", lang=active_lang, profiles=available
+                )
+            )
             sys.exit(1)
         active_profile = all_profiles[chosen]
     else:
@@ -200,13 +217,17 @@ def _resolve_display_preferences(
         use_normalized_names = (
             use_norm.lower() in ("true", "1", "yes")
             if isinstance(use_norm, str)
-            else bool(use_norm) if use_norm is not None else DEFAULT_USE_NORMALIZED_STOP_NAMES
+            else bool(use_norm)
+            if use_norm is not None
+            else DEFAULT_USE_NORMALIZED_STOP_NAMES
         )
 
     if active_profile.transit_naming is not None:
         transit_naming_style = active_profile.transit_naming
     else:
-        transit_naming_style = str(app_config.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE))
+        transit_naming_style = str(
+            app_config.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE)
+        )
 
     return use_normalized_names, transit_naming_style
 
@@ -277,7 +298,9 @@ def main() -> None:
         system_overrides=SYSTEM_OVERRIDES,
     )
 
-    _run_display_loop(session, stops_state, stop_presenter, args, app_config, active_lang)
+    _run_display_loop(
+        session, stops_state, stop_presenter, args, app_config, active_lang
+    )
 
 
 if __name__ == "__main__":

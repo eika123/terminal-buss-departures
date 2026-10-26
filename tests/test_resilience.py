@@ -24,7 +24,9 @@ def reset_failure_trackers():
 @pytest.mark.parametrize("prefix", ["https://api.entur.io", "http://digitransit.fi"])
 def test_resilient_session_configuration(prefix: str):
     """Verify create_resilient_session configures urllib3 Retry and adapters correctly."""
-    session = create_resilient_session(retries=4, backoff_factor=0.25, status_forcelist=(429, 500, 503))
+    session = create_resilient_session(
+        retries=4, backoff_factor=0.25, status_forcelist=(429, 500, 503)
+    )
 
     adapter = session.get_adapter(prefix)
     assert isinstance(adapter, HTTPAdapter)
@@ -106,7 +108,9 @@ def test_chaos_intermittent_network_drop_preserves_offline_cache(mocker):
     }
 
     # Cycle 1: Network drop (ConnectionError)
-    mock_provider.fetch_stop.side_effect = requests.exceptions.ConnectionError("Temporary network drop")
+    mock_provider.fetch_stop.side_effect = requests.exceptions.ConnectionError(
+        "Temporary network drop"
+    )
     fetch_and_update_departures(session, stops_state, 3600, 5, app_config)
 
     assert state.error_message is not None
@@ -138,7 +142,9 @@ def test_chaos_intermittent_network_drop_preserves_offline_cache(mocker):
     mock_weather = mocker.MagicMock()
     mock_weather.get_weather.return_value = None
 
-    fetch_and_update_departures(session, stops_state, 3600, 5, app_config, weather_service=mock_weather)
+    fetch_and_update_departures(
+        session, stops_state, 3600, 5, app_config, weather_service=mock_weather
+    )
 
     assert state.error_message is None
     assert state.normalized_data is not None
@@ -161,7 +167,9 @@ def test_chaos_persistent_network_outage_raises_max_failures(mocker):
     Chaos test: Verify that 11 consecutive network failures trigger MaxConsecutiveFailuresExceeded.
     """
     mock_provider = mocker.MagicMock(spec=TransitProvider)
-    mock_provider.fetch_stop.side_effect = requests.exceptions.ConnectTimeout("Upstream offline")
+    mock_provider.fetch_stop.side_effect = requests.exceptions.ConnectTimeout(
+        "Upstream offline"
+    )
 
     state = StopPlaceState(
         name="Oslo S",
@@ -185,7 +193,9 @@ def test_chaos_persistent_network_outage_raises_max_failures(mocker):
 def test_chaos_api_corruption_error_handling(mocker):
     """Chaos test: Verify invalid JSON or unexpected API schema is caught as API_ERROR."""
     mock_provider = mocker.MagicMock(spec=TransitProvider)
-    mock_provider.fetch_stop.side_effect = TypeError("Malformed payload: expected list, got int")
+    mock_provider.fetch_stop.side_effect = TypeError(
+        "Malformed payload: expected list, got int"
+    )
 
     state = StopPlaceState(
         name="Kamppi",
@@ -257,4 +267,3 @@ def test_presenter_renders_offline_state_without_cached_data(capsys):
     captured = capsys.readouterr().out
     assert "Jernbanetorget" in captured
     assert "📡 Network offline" in captured
-

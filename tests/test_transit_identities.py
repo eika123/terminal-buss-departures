@@ -11,11 +11,16 @@ from transit_identities import (
 
 def test_detect_transit_system_by_prefix():
     assert detect_transit_system(clean_id="HSL:1020455") == "helsinki_hsl"
+    assert detect_transit_system(clean_id="fi:hsl:1020455") == "helsinki_hsl"
     assert detect_transit_system(clean_id="hki:12345") == "helsinki_hsl"
-    assert detect_transit_system(clean_id="tampere:001") == "tampere_ratikka"
+    assert detect_transit_system(clean_id="tampere:001") == "tampere_nysse"
+    assert detect_transit_system(clean_id="nysse:0805") == "tampere_nysse"
+    assert detect_transit_system(clean_id="fi:nysse:0805") == "tampere_nysse"
     assert detect_transit_system(clean_id="SL:9112") == "stockholm_sl"
     assert detect_transit_system(clean_id="TFL:9400ZZLUBST") == "london_tfl"
-    assert detect_transit_system(clean_id="NSR:StopPlace:58366") is None  # Resolved by coordinates
+    assert (
+        detect_transit_system(clean_id="NSR:StopPlace:58366") is None
+    )  # Resolved by coordinates
 
 
 def test_detect_transit_system_by_coordinates():
@@ -28,7 +33,7 @@ def test_detect_transit_system_by_coordinates():
     # Helsinki Kamppi coordinates
     assert detect_transit_system(latitude=60.169, longitude=24.933) == "helsinki_hsl"
     # Tampere Keskustori coordinates
-    assert detect_transit_system(latitude=61.498, longitude=23.761) == "tampere_ratikka"
+    assert detect_transit_system(latitude=61.498, longitude=23.761) == "tampere_nysse"
     # Stockholm T-Centralen coordinates
     assert detect_transit_system(latitude=59.331, longitude=18.061) == "stockholm_sl"
     # London Westminster coordinates
@@ -51,7 +56,9 @@ def test_detect_transit_system_by_coordinates():
         ("tram", "bergen_skyss", "no", "Bybanen"),
         ("tram", "bergen_skyss", "fi", "Pikaspora"),
         ("tram", "bergen_skyss", "sv", "Bybanan"),
-        # Tampere Ratikka
+        # Tampere Nysse / Ratikka
+        ("tram", "tampere_nysse", "fi", "Ratikka"),
+        ("tram", "tampere_nysse", "no", "Trikk"),
         ("tram", "tampere_ratikka", "fi", "Ratikka"),
         ("tram", "tampere_ratikka", "no", "Trikk"),
         # London Tube
@@ -69,7 +76,9 @@ def test_resolve_transit_term_cultural_exonyms(
 ):
     """Verify cultural transit naming style returns authentic exonyms per user language."""
     assert (
-        resolve_transit_term(mode, system_id, user_lang=user_lang, naming_style="cultural")
+        resolve_transit_term(
+            mode, system_id, user_lang=user_lang, naming_style="cultural"
+        )
         == expected_term
     )
 
@@ -89,7 +98,9 @@ def test_resolve_transit_term_original_mode(
 ):
     """Verify original transit naming style yields native endonyms regardless of user language."""
     assert (
-        resolve_transit_term(mode, system_id, user_lang=user_lang, naming_style="original")
+        resolve_transit_term(
+            mode, system_id, user_lang=user_lang, naming_style="original"
+        )
         == expected_term
     )
 
@@ -97,10 +108,14 @@ def test_resolve_transit_term_original_mode(
 def test_resolve_transit_term_edge_cases():
     """Verify handling of unknown transit systems, invalid languages, and missing dictionary terms."""
     # Unknown transit system falls back to international message translation
-    assert resolve_transit_term("metro", "non_existent_system", user_lang="no") == "T-bane"
+    assert (
+        resolve_transit_term("metro", "non_existent_system", user_lang="no") == "T-bane"
+    )
 
     # Unsupported user language code falls back to English exonym
-    assert resolve_transit_term("metro", "london_tfl", user_lang="invalid_lang") == "Tube"
+    assert (
+        resolve_transit_term("metro", "london_tfl", user_lang="invalid_lang") == "Tube"
+    )
 
     # Mode not recognized in registry or dictionary falls back to capitalized mode name
     assert resolve_transit_term("teleport", "oslo_ruter", user_lang="en") == "Teleport"
@@ -108,22 +123,57 @@ def test_resolve_transit_term_edge_cases():
 
 def test_resolve_transit_term_generic_mode():
     # Standard dictionary translations
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="no", naming_style="generic") == "T-bane"
-    assert resolve_transit_term("metro", "london_tfl", user_lang="no", naming_style="generic") == "T-bane"
-    assert resolve_transit_term("metro", "london_tfl", user_lang="fi", naming_style="generic") == "Metro"
+    assert (
+        resolve_transit_term(
+            "metro", "oslo_ruter", user_lang="no", naming_style="generic"
+        )
+        == "T-bane"
+    )
+    assert (
+        resolve_transit_term(
+            "metro", "london_tfl", user_lang="no", naming_style="generic"
+        )
+        == "T-bane"
+    )
+    assert (
+        resolve_transit_term(
+            "metro", "london_tfl", user_lang="fi", naming_style="generic"
+        )
+        == "Metro"
+    )
 
 
 def test_resolve_transit_term_overrides():
     # Mode override overrides all systems
     mode_ov = {"metro": "T"}
-    assert resolve_transit_term("metro", "helsinki_hsl", user_lang="fi", mode_overrides=mode_ov) == "T"
+    assert (
+        resolve_transit_term(
+            "metro", "helsinki_hsl", user_lang="fi", mode_overrides=mode_ov
+        )
+        == "T"
+    )
 
     # System-specific override overrides specific system
     sys_ov = {"oslo_ruter.metro": "T", "helsinki_hsl.metro": "M"}
-    assert resolve_transit_term("metro", "oslo_ruter", user_lang="no", system_overrides=sys_ov) == "T"
-    assert resolve_transit_term("metro", "helsinki_hsl", user_lang="fi", system_overrides=sys_ov) == "M"
+    assert (
+        resolve_transit_term(
+            "metro", "oslo_ruter", user_lang="no", system_overrides=sys_ov
+        )
+        == "T"
+    )
+    assert (
+        resolve_transit_term(
+            "metro", "helsinki_hsl", user_lang="fi", system_overrides=sys_ov
+        )
+        == "M"
+    )
     # Unaffected system falls back to cultural
-    assert resolve_transit_term("metro", "london_tfl", user_lang="en", system_overrides=sys_ov) == "Tube"
+    assert (
+        resolve_transit_term(
+            "metro", "london_tfl", user_lang="en", system_overrides=sys_ov
+        )
+        == "Tube"
+    )
 
 
 def test_departure_presenter_with_transit_identities():
@@ -148,7 +198,9 @@ def test_departure_presenter_with_transit_identities():
 
     # Finn in Oslo with original mode: "T-bane"
     p_fi_orig = DeparturePresenter(lang="fi", naming_style="original", mode_max_width=7)
-    row_fi_orig = p_fi_orig.format_departure_row(dep, has_fresh_data=True, system_id="oslo_ruter")
+    row_fi_orig = p_fi_orig.format_departure_row(
+        dep, has_fresh_data=True, system_id="oslo_ruter"
+    )
     assert "T-bane" in row_fi_orig
 
 
@@ -177,7 +229,9 @@ def test_stop_place_presenter_automatic_detection(capsys):
     )
 
     # Render for a Finnish user: should automatically detect Oslo coordinates and render Metro
-    presenter = StopPlacePresenter(lang="fi", transit_naming_style="cultural", transport_mode_max_width=7)
+    presenter = StopPlacePresenter(
+        lang="fi", transit_naming_style="cultural", transport_mode_max_width=7
+    )
     presenter.render(state)
 
     captured = capsys.readouterr().out

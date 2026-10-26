@@ -43,13 +43,21 @@ DIGITRANSIT_FINLAND_URL = "https://api.digitransit.fi/routing/v2/finland/gtfs/v1
 
 def get_xdg_config_dir() -> Path:
     """Returns ~/.config/avgangstider or $XDG_CONFIG_HOME/avgangstider."""
-    base = Path(xdg) if (xdg := os.environ.get("XDG_CONFIG_HOME")) else Path.home() / ".config"
+    base = (
+        Path(xdg)
+        if (xdg := os.environ.get("XDG_CONFIG_HOME"))
+        else Path.home() / ".config"
+    )
     return base / "avgangstider"
 
 
 def get_xdg_cache_dir() -> Path:
     """Returns ~/.cache/avgangstider or $XDG_CACHE_HOME/avgangstider."""
-    base = Path(xdg) if (xdg := os.environ.get("XDG_CACHE_HOME")) else Path.home() / ".cache"
+    base = (
+        Path(xdg)
+        if (xdg := os.environ.get("XDG_CACHE_HOME"))
+        else Path.home() / ".cache"
+    )
     path = base / "avgangstider"
     path.mkdir(parents=True, exist_ok=True)
     return path
@@ -85,11 +93,13 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
     if config_toml_path:
         candidates.append(Path(config_toml_path))
     else:
-        candidates.extend([
-            Path.cwd() / "config.toml",
-            get_xdg_config_dir() / "config.toml",
-            Path(__file__).resolve().parent / "config.toml",
-        ])
+        candidates.extend(
+            [
+                Path.cwd() / "config.toml",
+                get_xdg_config_dir() / "config.toml",
+                Path(__file__).resolve().parent / "config.toml",
+            ]
+        )
 
     loaded_toml = {}
     for candidate in candidates:
@@ -110,21 +120,45 @@ def load_app_settings(config_toml_path: Path | None = None) -> dict[str, Any]:
     sys_ov = display.get("system_overrides", {})
 
     return {
-        "destination_max_width": int(display.get("destination_max_width", DEFAULT_DESTINATION_MAX_WIDTH)),
-        "transport_mode_max_width": int(display.get("transport_mode_max_width", DEFAULT_TRANSPORT_MODE_MAX_WIDTH)),
-        "transit_naming_style": str(display.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE)),
-        "mode_overrides": {str(k).lower(): str(v) for k, v in mode_ov.items()} if isinstance(mode_ov, dict) else {},
-        "system_overrides": {str(k).lower(): str(v) for k, v in sys_ov.items()} if isinstance(sys_ov, dict) else {},
+        "destination_max_width": int(
+            display.get("destination_max_width", DEFAULT_DESTINATION_MAX_WIDTH)
+        ),
+        "transport_mode_max_width": int(
+            display.get("transport_mode_max_width", DEFAULT_TRANSPORT_MODE_MAX_WIDTH)
+        ),
+        "transit_naming_style": str(
+            display.get("transit_naming_style", DEFAULT_TRANSIT_NAMING_STYLE)
+        ),
+        "mode_overrides": {str(k).lower(): str(v) for k, v in mode_ov.items()}
+        if isinstance(mode_ov, dict)
+        else {},
+        "system_overrides": {str(k).lower(): str(v) for k, v in sys_ov.items()}
+        if isinstance(sys_ov, dict)
+        else {},
         "terminal_width": int(display.get("terminal_width", DEFAULT_TERMINAL_WIDTH)),
         "terminal_style": str(display.get("terminal_style", TerminalStyle.MODERN)),
         "language": display.get("language"),
-        "use_normalized_stop_names": bool(display.get("use_normalized_stop_names", DEFAULT_USE_NORMALIZED_STOP_NAMES)),
-        "time_range_seconds": int(query.get("time_range_seconds", DEFAULT_TIME_RANGE_SECONDS)),
-        "departures_count": int(query.get("departures_count", DEFAULT_DEPARTURES_COUNT)),
-        "refresh_interval_seconds": int(query.get("refresh_interval_seconds", DEFAULT_REFRESH_INTERVAL_SECONDS)),
-        "weather_cache_duration_seconds": int(cache.get("weather_cache_duration_seconds", WEATHER_CACHE_DURATION_SECONDS)),
-        "request_timeout_seconds": int(network.get("request_timeout_seconds", REQUEST_TIMEOUT_SECONDS)),
-        "max_consecutive_failures": int(network.get("max_consecutive_failures", DEFAULT_MAX_CONSECUTIVE_FAILURES)),
+        "use_normalized_stop_names": bool(
+            display.get("use_normalized_stop_names", DEFAULT_USE_NORMALIZED_STOP_NAMES)
+        ),
+        "time_range_seconds": int(
+            query.get("time_range_seconds", DEFAULT_TIME_RANGE_SECONDS)
+        ),
+        "departures_count": int(
+            query.get("departures_count", DEFAULT_DEPARTURES_COUNT)
+        ),
+        "refresh_interval_seconds": int(
+            query.get("refresh_interval_seconds", DEFAULT_REFRESH_INTERVAL_SECONDS)
+        ),
+        "weather_cache_duration_seconds": int(
+            cache.get("weather_cache_duration_seconds", WEATHER_CACHE_DURATION_SECONDS)
+        ),
+        "request_timeout_seconds": int(
+            network.get("request_timeout_seconds", REQUEST_TIMEOUT_SECONDS)
+        ),
+        "max_consecutive_failures": int(
+            network.get("max_consecutive_failures", DEFAULT_MAX_CONSECUTIVE_FAILURES)
+        ),
     }
 
 
@@ -179,20 +213,28 @@ def resolve_config_and_stops_files(
         return Path(custom_env), Path(custom_stops)
 
     cwd = Path.cwd()
-    if _is_local_dev_workspace(cwd) and (cwd / ".env").is_file() and (cwd / "stoppesteder.txt").is_file():
+    if (
+        _is_local_dev_workspace(cwd)
+        and (cwd / ".env").is_file()
+        and (cwd / "stoppesteder.txt").is_file()
+    ):
         env_file = Path(custom_env) if custom_env else cwd / ".env"
         stops_file = Path(custom_stops) if custom_stops else cwd / "stoppesteder.txt"
         return env_file, stops_file
 
     xdg_dir = get_xdg_config_dir()
     env_file = _resolve_fallback_file(custom_env, xdg_dir / ".env", cwd / ".env")
-    stops_file = _resolve_fallback_file(custom_stops, xdg_dir / "stoppesteder.txt", cwd / "stoppesteder.txt")
+    stops_file = _resolve_fallback_file(
+        custom_stops, xdg_dir / "stoppesteder.txt", cwd / "stoppesteder.txt"
+    )
     return env_file, stops_file
 
 
 def _handle_missing_stops_file(file_path: Path, lang: str | None) -> None:
     """Displays user-friendly guidance when stoppesteder.txt is missing, then exits."""
-    print(translate_international_message("err_no_stops_file", lang=lang, path=file_path))
+    print(
+        translate_international_message("err_no_stops_file", lang=lang, path=file_path)
+    )
     print(translate_international_message("create_stops_file", lang=lang))
     print(translate_international_message("see_example_file", lang=lang))
     print(translate_international_message("find_stops_url", lang=lang))
@@ -269,14 +311,20 @@ def _process_header_line(
     header_content = line[1:-1].strip()
     parsed = _parse_profile_header(header_content) if header_content else None
     if not parsed:
-        print(translate_international_message("err_empty_section", lang=lang, line=line_no, path=file_path))
+        print(
+            translate_international_message(
+                "err_empty_section", lang=lang, line=line_no, path=file_path
+            )
+        )
         sys.exit(1)
     profile_name, use_norm, transit_naming, options = parsed
     _update_or_create_profile(profiles, profile_name, use_norm, transit_naming, options)
     return profile_name
 
 
-def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, StopProfile]:
+def load_stop_places(
+    file_path: Path, lang: str | None = None
+) -> dict[str, StopProfile]:
     """
     Reads stop places grouped by sections ([home], [work], etc.) from file.
     Supports per-profile configuration options in section header, e.g.:
@@ -298,15 +346,25 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
                     continue
 
                 if line.startswith("[") and line.endswith("]"):
-                    active_profile_name = _process_header_line(line, line_no, file_path, lang, profiles)
+                    active_profile_name = _process_header_line(
+                        line, line_no, file_path, lang, profiles
+                    )
                     continue
 
                 if "=" not in line:
                     continue
 
                 if active_profile_name is None:
-                    print(translate_international_message("err_no_section_header", lang=lang, path=file_path))
-                    print(translate_international_message("line_missing_header", lang=lang, line=line_no, text=line))
+                    print(
+                        translate_international_message(
+                            "err_no_section_header", lang=lang, path=file_path
+                        )
+                    )
+                    print(
+                        translate_international_message(
+                            "line_missing_header", lang=lang, line=line_no, text=line
+                        )
+                    )
                     sys.exit(1)
 
                 if entry := _parse_stop_entry(line):
@@ -314,7 +372,11 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
                     profiles[active_profile_name].stops[clean_name] = clean_id
 
         if not profiles:
-            print(translate_international_message("err_no_profiles_found", lang=lang, path=file_path))
+            print(
+                translate_international_message(
+                    "err_no_profiles_found", lang=lang, path=file_path
+                )
+            )
             print(translate_international_message("define_at_least_one", lang=lang))
             print('[home]\nKlimavegen = "NSR:StopPlace:53434"')
             sys.exit(1)
@@ -322,6 +384,9 @@ def load_stop_places(file_path: Path, lang: str | None = None) -> dict[str, Stop
         return profiles
     except OSError as e:
         logger.error("Failed to read stop places file: %s", e)
-        print(translate_international_message("err_reading_file", lang=lang, path=file_path, err=e))
+        print(
+            translate_international_message(
+                "err_reading_file", lang=lang, path=file_path, err=e
+            )
+        )
         sys.exit(1)
-

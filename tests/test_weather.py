@@ -67,11 +67,7 @@ def test_met_weather_adapter_success(mocker):
                                 "wind_from_direction": 220.0,
                             }
                         },
-                        "next_1_hours": {
-                            "summary": {
-                                "symbol_code": "cloudy"
-                            }
-                        }
+                        "next_1_hours": {"summary": {"symbol_code": "cloudy"}},
                     }
                 }
             ]
@@ -135,13 +131,17 @@ def test_weather_service_fetches_and_caches_on_miss(mocker, tmp_path):
 
     service = WeatherService(provider=mock_provider, cache=cache)
     session = mocker.MagicMock()
-    res = service.get_weather(session, 59.91, 10.75, app_config={"MET_USER_AGENT": "Test/1.0"})
+    res = service.get_weather(
+        session, 59.91, 10.75, app_config={"MET_USER_AGENT": "Test/1.0"}
+    )
 
     assert res == fresh_obs
     assert mock_provider.fetch_weather.call_count == 1
 
     # Next call should hit cache without provider call
-    res_second = service.get_weather(session, 59.91, 10.75, app_config={"MET_USER_AGENT": "Test/1.0"})
+    res_second = service.get_weather(
+        session, 59.91, 10.75, app_config={"MET_USER_AGENT": "Test/1.0"}
+    )
     assert res_second == fresh_obs
     assert mock_provider.fetch_weather.call_count == 1
 

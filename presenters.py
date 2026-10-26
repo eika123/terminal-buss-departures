@@ -56,7 +56,9 @@ class DeparturePresenter:
         else:
             return f"{minutes_left} {translate_international_message('min', lang=self.lang)}"
 
-    def format_transport_mode(self, transport_mode: str | None, system_id: str | None = None) -> str:
+    def format_transport_mode(
+        self, transport_mode: str | None, system_id: str | None = None
+    ) -> str:
         """Formats transport mode with emoji and localized text, truncating if exceeding mode_max_width."""
         mode_key = (transport_mode or "").lower()
         localized_name = resolve_transit_term(
@@ -75,7 +77,9 @@ class DeparturePresenter:
                 case "Tunnelbana" if self.mode_max_width >= 5:
                     display_name = "Tunn."
                 case _:
-                    display_name = f"{localized_name[: max(1, self.mode_max_width - 1)]}."
+                    display_name = (
+                        f"{localized_name[: max(1, self.mode_max_width - 1)]}."
+                    )
         else:
             display_name = localized_name
 
@@ -94,13 +98,25 @@ class DeparturePresenter:
 
         if delay_minutes > 0:
             msg = f"{delay_minutes} {translate_international_message('delayed', lang=self.lang)}"
-            return f"🔴 {msg}" if self.style == TerminalStyle.MODERN else f"\033[91m[!] {msg}\033[0m"
+            return (
+                f"🔴 {msg}"
+                if self.style == TerminalStyle.MODERN
+                else f"\033[91m[!] {msg}\033[0m"
+            )
         if delay_minutes < 0:
             msg = f"{abs(delay_minutes)} {translate_international_message('early', lang=self.lang)}"
-            return f"💚 {msg}" if self.style == TerminalStyle.MODERN else f"\033[92m[+] {msg}\033[0m"
+            return (
+                f"💚 {msg}"
+                if self.style == TerminalStyle.MODERN
+                else f"\033[92m[+] {msg}\033[0m"
+            )
 
         msg = translate_international_message("on_time", lang=self.lang)
-        return f"💚 {msg}" if self.style == TerminalStyle.MODERN else f"\033[92m[V] {msg}\033[0m"
+        return (
+            f"💚 {msg}"
+            if self.style == TerminalStyle.MODERN
+            else f"\033[92m[V] {msg}\033[0m"
+        )
 
     def format_departure_row(
         self, dep: DepartureData, has_fresh_data: bool, system_id: str | None = None
@@ -123,12 +139,12 @@ class DeparturePresenter:
                 aim_str = f"({aimed_clock})"
                 status_str = f"   {delay}"
             else:
-                exp_str = " "*5
+                exp_str = " " * 5
                 aim_str = f"({aimed_clock})"
-                status_str = f"   {translate_international_message("no_realtime", lang=self.lang)}"
+                status_str = f"   {translate_international_message('no_realtime', lang=self.lang)}"
                 time_left = self.minutes_until_departure(dep.aimed_iso)
 
-            dest_display = destination[:(DESTINATION_MAX_WIDTH-1)]
+            dest_display = destination[: (DESTINATION_MAX_WIDTH - 1)]
             return (
                 f"{mode_str} {line_code:>5}  {dest_display:<{DESTINATION_MAX_WIDTH}}  "
                 f"{time_left:>7}  {exp_str} {aim_str} {status_str}"
@@ -153,23 +169,79 @@ class WeatherPresenter:
     def degrees_to_wind_direction(self, degrees: float) -> tuple[str, str]:
         """Converts degrees to localized 16-point compass label and flow arrow."""
         compass_names = [
-            "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+            "N",
+            "NNE",
+            "NE",
+            "ENE",
+            "E",
+            "ESE",
+            "SE",
+            "SSE",
+            "S",
+            "SSW",
+            "SW",
+            "WSW",
+            "W",
+            "WNW",
+            "NW",
+            "NNW",
         ]
         if self.lang in ("no", "sv"):
             compass_names = [
-                "N", "NNØ", "NØ", "ØNØ", "Ø", "ØSØ", "SØ", "SSØ",
-                "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV"
+                "N",
+                "NNØ",
+                "NØ",
+                "ØNØ",
+                "Ø",
+                "ØSØ",
+                "SØ",
+                "SSØ",
+                "S",
+                "SSV",
+                "SV",
+                "VSV",
+                "V",
+                "VNV",
+                "NV",
+                "NNV",
             ]
         elif self.lang == "fi":
             compass_names = [
-                "P", "PPO", "PO", "I-PO", "I", "I-KA", "KA", "E-KA",
-                "E", "E-LO", "LO", "L-LO", "L", "L-LU", "LU", "P-LU"
+                "P",
+                "PPO",
+                "PO",
+                "I-PO",
+                "I",
+                "I-KA",
+                "KA",
+                "E-KA",
+                "E",
+                "E-LO",
+                "LO",
+                "L-LO",
+                "L",
+                "L-LU",
+                "LU",
+                "P-LU",
             ]
 
         arrows = [
-            "↓", "↙", "↙", "↙", "←", "↖", "↖", "↖",
-            "↑", "↗", "↗", "↗", "→", "↘", "↘", "↘"
+            "↓",
+            "↙",
+            "↙",
+            "↙",
+            "←",
+            "↖",
+            "↖",
+            "↖",
+            "↑",
+            "↗",
+            "↗",
+            "↗",
+            "→",
+            "↘",
+            "↘",
+            "↘",
         ]
 
         index = int((degrees + 11.25) % 360 // 22.5)
@@ -186,7 +258,9 @@ class WeatherPresenter:
         if desc == base_code:
             desc = weather.symbol_code.capitalize()
 
-        wind_text, wind_arrow = self.degrees_to_wind_direction(weather.wind_direction_degrees)
+        wind_text, wind_arrow = self.degrees_to_wind_direction(
+            weather.wind_direction_degrees
+        )
 
         if weather.wind_gust_ms and weather.wind_gust_ms > weather.wind_ms:
             wind_str = f"{weather.wind_ms:.1f} ({weather.wind_gust_ms:.1f}) m/s"
@@ -235,7 +309,6 @@ class StopPlacePresenter:
         )
         self.weather_presenter = WeatherPresenter(lang=lang, style=style)
 
-
     def print_weather_header_msg(self, yr_url, display_name, weather_text) -> None:
         if yr_url and weather_text and self.style == TerminalStyle.MODERN:
             linked_name = make_terminal_hyperlink(yr_url, display_name)
@@ -249,7 +322,9 @@ class StopPlacePresenter:
             header_text = f" {display_name}{weather_text} "
             print(f"{header_text:-^{self.terminal_width}}📍")
 
-    def _render_not_found(self, state: StopPlaceState, prov_id: str, yellow: str, reset: str) -> bool:
+    def _render_not_found(
+        self, state: StopPlaceState, prov_id: str, yellow: str, reset: str
+    ) -> bool:
         icon = "❓" if self.style != TerminalStyle.CLASSIC else "[?]"
         err_msg = translate_international_message(
             "stop_not_found", lang=self.lang, id=state.clean_id, provider=prov_id
@@ -257,16 +332,22 @@ class StopPlacePresenter:
         print(f" {yellow}{icon} {err_msg}{reset}")
         return True
 
-    def _render_api_error(self, state: StopPlaceState, prov_id: str, yellow: str, reset: str) -> bool:
+    def _render_api_error(
+        self, state: StopPlaceState, prov_id: str, yellow: str, reset: str
+    ) -> bool:
         icon = "⚠️" if self.style != TerminalStyle.CLASSIC else "[!]"
         detalj = (state.error_message or "").split(":", 1)[1]
         print(f" {yellow}{icon} API feil ({prov_id}): {detalj[:80]}{reset}")
         return True
 
-    def _render_offline_warning(self, last_updated_iso: str, yellow: str, reset: str) -> bool:
+    def _render_offline_warning(
+        self, last_updated_iso: str, yellow: str, reset: str
+    ) -> bool:
         last_time = arrow.get(last_updated_iso).format("HH:mm:ss")
         icon = "📡" if self.style != TerminalStyle.CLASSIC else "[!]"
-        warn_msg = translate_international_message("offline_warn", lang=self.lang, time=last_time)
+        warn_msg = translate_international_message(
+            "offline_warn", lang=self.lang, time=last_time
+        )
         print(f" {yellow}{icon} {warn_msg}{reset}")
         return False
 
@@ -291,7 +372,9 @@ class StopPlacePresenter:
             return self._render_offline_warning(state.last_updated_iso, yellow, reset)
 
         icon = "📡" if self.style != TerminalStyle.CLASSIC else "[X]"
-        err_msg = translate_international_message("offline_err", lang=self.lang, name=display_name)
+        err_msg = translate_international_message(
+            "offline_err", lang=self.lang, name=display_name
+        )
         print(f" {icon} {err_msg}")
         return True
 
@@ -307,7 +390,9 @@ class StopPlacePresenter:
         return None
 
     def render(self, state: StopPlaceState) -> None:
-        has_fresh_data = state.error_message is None and state.normalized_data is not None
+        has_fresh_data = (
+            state.error_message is None and state.normalized_data is not None
+        )
         norm = state.normalized_data
         display_name = self._resolve_display_name(state)
         weather_text = self.weather_presenter.format_header(state.weather)
@@ -321,7 +406,9 @@ class StopPlacePresenter:
             print(f"  {translate_international_message('no_data', lang=self.lang)}")
             return
         if not norm.departures:
-            print(f"  {translate_international_message('no_departures', lang=self.lang)}")
+            print(
+                f"  {translate_international_message('no_departures', lang=self.lang)}"
+            )
             return
 
         system_id = state.transit_system_id or detect_transit_system(

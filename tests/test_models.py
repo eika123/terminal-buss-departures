@@ -22,7 +22,7 @@ def test_weather_data_valid():
 def test_weather_data_validation_error():
     with pytest.raises(ValidationError):
         # Missing required fields like symbol_code and fetched_at_iso
-        WeatherData(temperature_c="invalid_number") # type: ignore
+        WeatherData(temperature_c="invalid_number")  # type: ignore
 
 
 def test_departure_data_valid():
@@ -69,4 +69,3 @@ def test_stop_place_state():
     assert state.provider.provider_id == "entur"
     assert state.normalized_data is None
     assert state.weather is None
-

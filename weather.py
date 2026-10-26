@@ -23,7 +23,9 @@ class WeatherCache:
 
     def __init__(self, cache_path: Path = WEATHER_CACHE_FILE, max_failures: int = 10):
         self.cache_path = cache_path
-        self.tracker = ConsecutiveFailureTracker(name="weather_cache", max_failures=max_failures)
+        self.tracker = ConsecutiveFailureTracker(
+            name="weather_cache", max_failures=max_failures
+        )
         self._data: dict[str, dict[str, Any]] = self._load_from_disk()
 
     def _load_from_disk(self) -> dict[str, dict[str, Any]]:
@@ -85,7 +87,9 @@ class MetWeatherAdapter:
         tracker: ConsecutiveFailureTracker | None = None,
     ) -> None:
         self.api_url = api_url
-        self.tracker = tracker or ConsecutiveFailureTracker(name="met_weather_api", max_failures=10)
+        self.tracker = tracker or ConsecutiveFailureTracker(
+            name="met_weather_api", max_failures=10
+        )
 
     def fetch_weather(
         self,
@@ -100,7 +104,7 @@ class MetWeatherAdapter:
                 "Missing required config 'MET_USER_AGENT' in .env.\n"
                 "Meteorologisk institutt (MET Norway) requires that all clients identify themselves\n"
                 "with an application name and contact info (e.g. email or URL).\n"
-                "Example in .env: MET_USER_AGENT=\"MyTransitApp/1.0 (contact: user@example.com)\""
+                'Example in .env: MET_USER_AGENT="MyTransitApp/1.0 (contact: user@example.com)"'
             )
 
         headers = {
@@ -117,7 +121,12 @@ class MetWeatherAdapter:
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
             if res.status_code != 200:
-                logger.warning("MET API returned HTTP %s for lat=%s lon=%s", res.status_code, lat, lon)
+                logger.warning(
+                    "MET API returned HTTP %s for lat=%s lon=%s",
+                    res.status_code,
+                    lat,
+                    lon,
+                )
                 return None
 
             body = res.json()
@@ -129,7 +138,11 @@ class MetWeatherAdapter:
             wind_gust = float(wind_gust_raw) if wind_gust_raw is not None else None
             wind_dir = float(instant.get("wind_from_direction", 0.0))
 
-            next_1h = now_timeseries.get("next_1_hours") or now_timeseries.get("next_6_hours") or {}
+            next_1h = (
+                now_timeseries.get("next_1_hours")
+                or now_timeseries.get("next_6_hours")
+                or {}
+            )
             summary = next_1h.get("summary", {})
             raw_symbol = summary.get("symbol_code", "clearsky")
 
@@ -164,9 +177,13 @@ class WeatherService:
         provider: WeatherProvider | None = None,
     ) -> None:
         if cache is None:
-            raise ValueError("A valid WeatherCache instance is mandatory for WeatherService.")
+            raise ValueError(
+                "A valid WeatherCache instance is mandatory for WeatherService."
+            )
         self.cache: WeatherCache = cache
-        self.provider: WeatherProvider = provider if provider is not None else MetWeatherAdapter()
+        self.provider: WeatherProvider = (
+            provider if provider is not None else MetWeatherAdapter()
+        )
 
     def get_weather(
         self,

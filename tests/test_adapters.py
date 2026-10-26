@@ -18,7 +18,14 @@ from models import StopPlaceState, TransitProvider
     [
         # Explicit country-code prefixes
         ("NO:NSR:StopPlace:123", "entur", "NSR:StopPlace:123"),
-        ("FI:1020455", "digitransit_hsl", "1020455"),
+        ("fi:hsl:1020455", "digitransit_hsl", "hsl:1020455"),
+        ("fi:hki:1020455", "digitransit_hsl", "hki:1020455"),
+        ("fi:nysse:0805", "digitransit_finland", "nysse:0805"),
+        ("fi:tampere:1234", "digitransit_finland", "tampere:1234"),
+        ("fi:waltti:501", "digitransit_finland", "waltti:501"),
+        ("fi:matka:100", "digitransit_finland", "matka:100"),
+        ("fi:vr:99", "digitransit_finland", "vr:99"),
+        ("fi:0805", "digitransit_finland", "0805"),
         ("FINLAND:tampere:001", "digitransit_finland", "tampere:001"),
         ("SE:740000001", "resrobot", "740000001"),
         ("DK:8600001", "rejseplanen", "8600001"),
@@ -27,6 +34,7 @@ from models import StopPlaceState, TransitProvider
         ("HSL:1020455", "digitransit_hsl", "HSL:1020455"),
         ("hki:1020455", "digitransit_hsl", "hki:1020455"),
         ("tampere:1234", "digitransit_finland", "tampere:1234"),
+        ("nysse:0805", "digitransit_finland", "nysse:0805"),
         ("waltti:501", "digitransit_finland", "waltti:501"),
         ("matka:100", "digitransit_finland", "matka:100"),
         ("vr:99", "digitransit_finland", "vr:99"),
@@ -95,14 +103,11 @@ def test_fetch_entur_success(mocker):
                         "destinationDisplay": {"frontText": "Sentrum"},
                         "serviceJourney": {
                             "journeyPattern": {
-                                "line": {
-                                    "publicCode": "28",
-                                    "transportMode": "bus"
-                                }
+                                "line": {"publicCode": "28", "transportMode": "bus"}
                             }
-                        }
+                        },
                     }
-                ]
+                ],
             }
         }
     }
@@ -144,14 +149,9 @@ def test_fetch_digitransit_success(mocker):
                         "realtime": True,
                         "serviceDay": 1700000000,
                         "headsign": "Vuosaari",
-                        "trip": {
-                            "route": {
-                                "shortName": "M1",
-                                "mode": "SUBWAY"
-                            }
-                        }
+                        "trip": {"route": {"shortName": "M1", "mode": "SUBWAY"}},
                     }
-                ]
+                ],
             }
         }
     }
@@ -198,7 +198,9 @@ def test_fetch_entur_error_branches(mocker):
     mock_404.status_code = 404
     session.post.return_value = mock_404
     with pytest.raises(LookupError, match="not found on Entur"):
-        fetch_entur_stop(session, "NSR:StopPlace:99999", 3600, 5, {"ET_CLIENT_NAME": "test"})
+        fetch_entur_stop(
+            session, "NSR:StopPlace:99999", 3600, 5, {"ET_CLIENT_NAME": "test"}
+        )
 
     # GraphQL errors
     mock_gql_err = mocker.MagicMock()
@@ -206,7 +208,9 @@ def test_fetch_entur_error_branches(mocker):
     mock_gql_err.json.return_value = {"errors": [{"message": "Invalid query syntax"}]}
     session.post.return_value = mock_gql_err
     with pytest.raises(ValueError, match="GraphQL errors"):
-        fetch_entur_stop(session, "NSR:StopPlace:53434", 3600, 5, {"ET_CLIENT_NAME": "test"})
+        fetch_entur_stop(
+            session, "NSR:StopPlace:53434", 3600, 5, {"ET_CLIENT_NAME": "test"}
+        )
 
     # Empty stopPlace returned
     mock_empty = mocker.MagicMock()
@@ -214,7 +218,9 @@ def test_fetch_entur_error_branches(mocker):
     mock_empty.json.return_value = {"data": {"stopPlace": None}}
     session.post.return_value = mock_empty
     with pytest.raises(LookupError, match="returned no stopPlace data"):
-        fetch_entur_stop(session, "NSR:StopPlace:53434", 3600, 5, {"ET_CLIENT_NAME": "test"})
+        fetch_entur_stop(
+            session, "NSR:StopPlace:53434", 3600, 5, {"ET_CLIENT_NAME": "test"}
+        )
 
 
 def test_fetch_digitransit_error_branches(mocker):
@@ -251,4 +257,3 @@ def test_fetch_digitransit_error_branches(mocker):
     session.post.return_value = mock_empty
     with pytest.raises(LookupError, match="returned no stop or station data"):
         fetch_digitransit_stop(session, "1020455", 3600, 5, app_config)
-

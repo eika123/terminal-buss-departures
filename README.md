@@ -14,7 +14,7 @@ The interface is localized in **Norwegian**, **Swedish**, **Finnish**, and **Eng
 ## Features
 
 - **Multi-language UI (i18n)**: Native support for Norwegian (`no`), Swedish (`sv`), Finnish (`fi`), and English (`en`) selectable via `--lang <lang>` or `LANGUAGE=<lang>` in `.env` / `config.toml`.
-- **Culturally Aware Rapid Transit Naming**: Intelligently identifies metro and tram networks across Nordic and European cities to display culturally authentic local names (endonyms) or visitor exonyms (e.g. Oslo: *T-bane*, Stockholm: *T-bana*, Bergen: *Bybanen*, Tampere: *Ratikka*, London: *Tube* / *Tuben*, Berlin: *U-Bahn*). Finnish speakers viewing Oslo stations will see *Metro*, and in Bergen *Pikaspora*.
+- **Culturally Aware Rapid Transit Naming**: Intelligently identifies metro and tram networks across Nordic and European cities to display culturally authentic local names (endonyms) or visitor exonyms (e.g. Oslo: *T-bane*, Stockholm: *T-bana*, Bergen: *Bybanen*, Tampere: *Nysse* / *Ratikka*, London: *Tube* / *Tuben*, Berlin: *U-Bahn*). Finnish speakers viewing Oslo stations will see *Metro*, and in Bergen *Pikaspora*.
 - **Real-time Countdown & Delays**: Accurate minute counts and schedule deviations with aligned status indicators.
 - **Local Weather & Wind Direction**: Automatically displays temperature, wind speed, gusts, 16-point localized compass headings, and weather condition emojis from MET Norway Locationforecast 2.0.
 - **Interactive Terminal Hyperlinks**: Click directly on stop headers or map pins to view detailed weather forecasts on Yr.no (via OSC 8 terminal hyperlinks).
@@ -141,7 +141,8 @@ The `stoppesteder.txt` file **must** be organized into sections enclosed in squa
 | Country / Region | Service | Status | Where to Find Stop Places / IDs | Example ID |
 | :--- | :--- | :--- | :--- | :--- |
 | 🇳🇴 **Norway** | Entur (NSR) | **Supported** | [stoppesteder.entur.org](https://stoppesteder.entur.org/) | `NSR:StopPlace:58366` |
-| 🇫🇮 **Helsinki (Finland)** | Digitransit / HSL | **Supported (HSL tested)** | [reittiopas.hsl.fi](https://reittiopas.hsl.fi/) (click on a stop to view URL/code) or [digitransit.fi](https://digitransit.fi/) | `HSL:1040101` / `1040101` |
+| 🇫🇮 **Helsinki (Finland)** | Digitransit / HSL | **Supported** | [reittiopas.hsl.fi](https://reittiopas.hsl.fi/) (click on a stop to view URL/code) or [digitransit.fi](https://digitransit.fi/) | `fi:hsl:1040101` (or `HSL:1040101`) |
+| 🇫🇮 **Tampere (Finland)** | Digitransit / Nysse | **Supported** | [reittiopas.nysse.fi](https://reittiopas.nysse.fi/) or [nysse.fi](https://www.nysse.fi/) (uses Digitransit format) | `fi:nysse:0805` / `fi:tampere:0805` |
 | 🇸🇪 **Sweden** | Trafiklab (ResRobot) | *Planned / Not implemented* | [trafiklab.se/api/resrobot-v21/](https://www.trafiklab.se/) | *(Requires API key implementation)* |
 | 🇩🇰 **Denmark** | Rejseplanen | *Planned / Not implemented* | [labs.rejseplanen.dk](https://labs.rejseplanen.dk/) | *(Requires API key implementation)* |
 
@@ -163,8 +164,12 @@ Forskningsparken = "NSR:StopPlace:9912"
 Byparken = "NSR:StopPlace:59983"
 
 [helsinki, use_normalized_names=false]
-Rautatientori = "HSL:1040101"
-Kamppi = "HSL:1020455"
+Rautatientori = "fi:hsl:1040101"
+Kamppi = "fi:hsl:1020455"
+
+[tampere]
+Keskustori = "fi:nysse:0805"
+Hervantajärvi = "fi:tampere:0824"
 ```
 
 ---
@@ -201,10 +206,14 @@ Public transit systems (especially metros, trams, and rapid transit) have proud,
 | **Bergen Skyss** | Bergen, Norway | `Bybanen` | `no`: Bybanen, `sv`: Bybanan, `fi`: **Pikaspora**, `en`: Light rail |
 | **Trondheim AtB** | Trondheim, Norway | `Gråkallbanen` / `Trikk` | `no`: Gråkallbanen, `sv`: Spårv., `fi`: Ratikka, `en`: Tram |
 | **Helsinki HSL** | Helsinki, Finland | `Metro`, `Spora` | `fi`: Metro / Spora, `sv`: Metro / Spårv., `no`: Metro / Trikk, `en`: Metro / Tram |
-| **Tampere Ratikka** | Tampere, Finland | `Ratikka` | `fi`: Ratikka, `sv`: Spårv., `no`: Trikk, `en`: Tram |
+| **Tampere Nysse** | Tampere, Finland | `Ratikka` (tram) | `fi`: Ratikka, `sv`: Spårv., `no`: Trikk, `en`: Tram |
 | **Stockholm SL** | Stockholm, Sweden | `T-bana`, `Spårvagn` | `sv`: T-bana / Spårv., `no`: T-bana / Trikk, `fi`: Metro / Ratikka, `en`: Metro / Tram |
 | **London TfL** | London, UK | `Tube` | `en`: Tube, `no`: **Tuben**, `sv`: **Tuben**, `fi`: Metro |
 | **Berlin BVG** | Berlin, Germany | `U-Bahn` | `de`/`no`/`sv`/`en`: U-Bahn, `fi`: Metro |
+
+> [!NOTE]
+> **Tampere Regional Transit (Nysse & Ratikka):**
+> In Tampere, the regional public transport authority and network is **Nysse** ([nysse.fi](https://www.nysse.fi/)), whose journey planner ([reittiopas.nysse.fi](https://reittiopas.nysse.fi/)) uses the same Digitransit GraphQL API schema as Helsinki HSL. Stop IDs from Nysse can be specified with `fi:nysse:` or `fi:tampere:` (or directly `nysse:` / `tampere:`, e.g. `fi:nysse:0805`).
 
 ### Naming Modes (`transit_naming_style`)
 
@@ -234,6 +243,7 @@ metro = "T"
 [display.system_overrides]
 "oslo_ruter.metro" = "T"
 "helsinki_hsl.metro" = "M"
+"tampere_nysse.tram" = "Ratikka"
 "stockholm_sl.metro" = "T-bana"
 ```
 

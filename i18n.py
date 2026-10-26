@@ -10,6 +10,7 @@ class Language(StrEnum):
     FI = "fi"
     EN = "en"
 
+
 TranslationKey = Literal[
     "now",
     "min",
@@ -370,4 +371,3 @@ WEATHER_EMOJIS = {
     "snowshowers": "🌨️",
     "fog": "🌫️",
 }
-

@@ -46,11 +46,17 @@ def test_departure_presenter_transport_mode_translations():
 def test_departure_presenter_format_delay():
     p = DeparturePresenter(lang="no")
     # On time
-    assert "I rute" in p.format_delay("2026-10-25T12:00:00+02:00", "2026-10-25T12:00:00+02:00")
+    assert "I rute" in p.format_delay(
+        "2026-10-25T12:00:00+02:00", "2026-10-25T12:00:00+02:00"
+    )
     # Delayed
-    assert "forsinket" in p.format_delay("2026-10-25T12:00:00+02:00", "2026-10-25T12:05:00+02:00")
+    assert "forsinket" in p.format_delay(
+        "2026-10-25T12:00:00+02:00", "2026-10-25T12:05:00+02:00"
+    )
     # Early
-    assert "tidlig" in p.format_delay("2026-10-25T12:05:00+02:00", "2026-10-25T12:00:00+02:00")
+    assert "tidlig" in p.format_delay(
+        "2026-10-25T12:05:00+02:00", "2026-10-25T12:00:00+02:00"
+    )
 
 
 def test_departure_presenter_format_departure_row_realtime():
@@ -118,7 +124,9 @@ def test_stop_place_presenter_render_normal(capsys):
         expected_iso=arrow.now().shift(minutes=+10).isoformat(),
         is_realtime=True,
     )
-    norm = NormalizedStopData(name="Klimavegen", latitude=69.65, longitude=18.95, departures=[dep])
+    norm = NormalizedStopData(
+        name="Klimavegen", latitude=69.65, longitude=18.95, departures=[dep]
+    )
     state = StopPlaceState(
         name="Klimavegen",
         raw_id="NSR:StopPlace:53434",
@@ -158,7 +166,9 @@ def test_stop_place_presenter_user_vs_normalized_name(capsys):
         expected_iso=arrow.now().shift(minutes=+5).isoformat(),
         is_realtime=True,
     )
-    norm = NormalizedStopData(name="Itäkeskus (M)", latitude=60.2, longitude=25.0, departures=[dep])
+    norm = NormalizedStopData(
+        name="Itäkeskus (M)", latitude=60.2, longitude=25.0, departures=[dep]
+    )
     state = StopPlaceState(
         name="Hjemme - Østgående",
         raw_id="HSL:1020455",
@@ -187,7 +197,9 @@ def test_presenter_classic_style_and_truncation(capsys):
     from config import TerminalStyle
 
     # Mode abbreviation: Tunnelbana -> Tunn. when width is 5
-    pres_classic = DeparturePresenter(lang="sv", mode_max_width=5, style=TerminalStyle.CLASSIC)
+    pres_classic = DeparturePresenter(
+        lang="sv", mode_max_width=5, style=TerminalStyle.CLASSIC
+    )
     assert pres_classic.format_transport_mode("Tunnelbana") == "Tunn."
 
     # Delay formatting in classic mode
@@ -242,10 +254,10 @@ def test_stop_place_presenter_api_error_and_empty_departures(capsys):
         raw_id="NSR:StopPlace:58366",
         clean_id="NSR:StopPlace:58366",
         provider=default_entur_provider,
-        normalized_data=NormalizedStopData(name="Oslo S", latitude=59.91, longitude=10.75, departures=[]),
+        normalized_data=NormalizedStopData(
+            name="Oslo S", latitude=59.91, longitude=10.75, departures=[]
+        ),
     )
     pres.render(empty_deps_state)
     out = capsys.readouterr().out
     assert "Ingen planlagte avganger" in out
-
-

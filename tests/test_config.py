@@ -56,7 +56,9 @@ def test_load_app_settings_fallback_on_corrupt(tmp_path):
 
 
 def test_resolve_config_and_stops_explicit():
-    env, stops = resolve_config_and_stops_files(custom_env="/tmp/my.env", custom_stops="/tmp/my_stops.txt")
+    env, stops = resolve_config_and_stops_files(
+        custom_env="/tmp/my.env", custom_stops="/tmp/my_stops.txt"
+    )
     assert str(env) == "/tmp/my.env"
     assert str(stops) == "/tmp/my_stops.txt"
 
@@ -161,4 +163,3 @@ def test_resolve_config_and_stops_files_xdg_and_cwd(tmp_path, monkeypatch):
     env, stops = resolve_config_and_stops_files()
     assert env == xdg_env
     assert stops == xdg_stops
-

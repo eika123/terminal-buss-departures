@@ -5,7 +5,12 @@ from typing import Any
 import requests
 
 from config import ENTUR_GRAPHQL_URL, REQUEST_TIMEOUT_SECONDS, ConfigError
-from models import DepartureData, NormalizedStopData, TransitProvider
+from models import (
+    DepartureData,
+    NormalizedStopData,
+    TransitProvider,
+    TransitProviderKey,
+)
 
 ENTUR_MODE_MAP: dict[str, str] = {
     "coach": "bus",
@@ -54,7 +59,7 @@ class EnturTransitProvider(TransitProvider):
         self.api_url = api_url
 
     @property
-    def provider_id(self) -> str:
+    def provider_id(self) -> TransitProviderKey:
         return "entur"
 
     def fetch_stop(
@@ -129,7 +134,9 @@ class EnturTransitProvider(TransitProvider):
 
         stop_place = body.get("data", {}).get("stopPlace")
         if not stop_place:
-            raise LookupError(f"Stop ID '{clean_id}' returned no stopPlace data from Entur.")
+            raise LookupError(
+                f"Stop ID '{clean_id}' returned no stopPlace data from Entur."
+            )
 
         departures = _parse_entur_calls(stop_place.get("estimatedCalls", []))
         lat = stop_place.get("latitude")

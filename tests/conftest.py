@@ -38,6 +38,8 @@ def live_or_dummy_app_config():
     cfg = dotenv_values(".env")
     return {
         "ET_CLIENT_NAME": cfg.get("ET_CLIENT_NAME") or "test-avgangstider-client",
-        "MET_USER_AGENT": cfg.get("MET_USER_AGENT") or "TestTransitApp/1.0 (contact: test@example.com)",
-        "DIGITRANSIT_SUBSCRIPTION_KEY": cfg.get("DIGITRANSIT_SUBSCRIPTION_KEY") or "dummy_digitransit_sub_key",
+        "MET_USER_AGENT": cfg.get("MET_USER_AGENT")
+        or "TestTransitApp/1.0 (contact: test@example.com)",
+        "DIGITRANSIT_SUBSCRIPTION_KEY": cfg.get("DIGITRANSIT_SUBSCRIPTION_KEY")
+        or "dummy_digitransit_sub_key",
     }
