@@ -19,7 +19,7 @@ Finland uses two separate Digitransit GraphQL endpoints:
 | Joensuu | `Joensuu` | `joensuu`, `jojo` | [joensuu.digitransit.fi](https://joensuu.digitransit.fi/) | `Joensuun pääkirjasto I = "fi:joensuu:23575"` |
 | Kuopio | `Kuopio` | `kuopio`, `vilkku` | [kuopio.digitransit.fi](https://kuopio.digitransit.fi/) | `Kuopion lentoasema = "fi:kuopio:303023"` |
 
-Any other Digitransit Finland feed ID can be used directly as `fi:<feedId>:<stopId>` without needing an alias.
+Any other Digitransit Finland feed ID can be used directly as `fi:<feedId>:<stopId>` without needing an alias. To add a new town or operator alias, add it to `DIGITRANSIT_FEED_ALIASES` in [adapters/digitransit.py](digitransit.py).
 
 ### Finding Stop IDs & Feed IDs
 
@@ -58,7 +58,7 @@ Finland uses two separate Digitransit GraphQL endpoints:
 | Joensuu | `Joensuu` | `joensuu`, `jojo` | [joensuu.digitransit.fi](https://joensuu.digitransit.fi/) | `Joensuun pääkirjasto I = "fi:joensuu:23575"` |
 | Kuopio | `Kuopio` | `kuopio`, `vilkku` | [kuopio.digitransit.fi](https://kuopio.digitransit.fi/) | `Kuopion lentoasema = "fi:kuopio:303023"` |
 
-Any other Digitransit Finland feed ID can be used directly as `fi:<feedId>:<stopId>` without needing an alias.
+Any other Digitransit Finland feed ID can be used directly as `fi:<feedId>:<stopId>` without needing an alias. To add a new town or operator alias, add it to `DIGITRANSIT_FEED_ALIASES` in [adapters/digitransit.py](digitransit.py).
 
 ### Finding Stop IDs & Feed IDs
 
