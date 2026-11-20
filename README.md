@@ -213,7 +213,7 @@ Public transit systems (especially metros, trams, and rapid transit) have proud,
 
 > [!NOTE]
 > **Tampere Regional Transit (Nysse & Ratikka):**
-> In Tampere, the regional public transport authority and network is **Nysse** ([nysse.fi](https://www.nysse.fi/)), whose journey planner ([reittiopas.nysse.fi](https://reittiopas.nysse.fi/)) uses the same Digitransit GraphQL API schema as Helsinki HSL. Stop IDs from Nysse can be specified with `fi:nysse:` or `fi:tampere:` (or directly `nysse:` / `tampere:`, e.g. `fi:nysse:0805`).
+> In Tampere, the regional public transport authority and network is **Nysse** ([nysse.fi](https://www.nysse.fi/)), whose journey planner ([reittiopas.nysse.fi](https://reittiopas.nysse.fi/)) uses the Digitransit Finland GraphQL API. Stop IDs for Tampere can be specified with `fi:tampere:` (e.g. `fi:tampere:0805`).
 
 ### Naming Modes (`transit_naming_style`)
 
