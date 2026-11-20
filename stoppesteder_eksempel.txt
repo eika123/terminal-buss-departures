@@ -140,5 +140,5 @@ Kalsatama / Leonkatu E = "fi:hsl:1100417"
 # Tampere (Nysse / Ratikka)
 # Finn holdeplasskoder på reittiopas.nysse.fi eller nysse.fi (f.eks. nysse:0805 eller tampere:0805)
 [tampere]
-Keskustori = "fi:nysse:0805"
+Keskustori = "fi:tampere:0805"
 Hervantajärvi = "fi:tampere:0839"

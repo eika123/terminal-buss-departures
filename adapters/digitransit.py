@@ -29,7 +29,6 @@ DIGITRANSIT_MODE_MAP: dict[str, str] = {
 
 
 DIGITRANSIT_FEED_ALIASES: dict[str, str] = {
-    "nysse": "tampere",
     "turku": "FOLI",
     "foli": "FOLI",
     "oulu": "OULU",
