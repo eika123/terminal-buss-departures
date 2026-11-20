@@ -129,7 +129,7 @@ def test_fetch_entur_success(mocker):
 def test_fetch_digitransit_missing_subscription_key(mocker):
     session = mocker.MagicMock()
     with pytest.raises(ConfigError) as exc_info:
-        fetch_digitransit_stop(session, "1020455", 3600, 5, app_config={})
+        fetch_digitransit_stop(session, "hsl:1020455", 3600, 5, app_config={})
     assert "DIGITRANSIT_SUBSCRIPTION_KEY" in str(exc_info.value)
 
 
@@ -159,7 +159,7 @@ def test_fetch_digitransit_success(mocker):
     session.post.return_value = mock_resp
 
     app_config = {"DIGITRANSIT_SUBSCRIPTION_KEY": "fake_key"}
-    norm = fetch_digitransit_stop(session, "1020455", 3600, 5, app_config)
+    norm = fetch_digitransit_stop(session, "hsl:1020455", 3600, 5, app_config)
 
     assert norm.name == "Kamppi"
     assert norm.latitude == 60.169
@@ -233,14 +233,14 @@ def test_fetch_digitransit_error_branches(mocker):
     mock_401.status_code = 401
     session.post.return_value = mock_401
     with pytest.raises(ConfigError, match="Invalid or unauthorized"):
-        fetch_digitransit_stop(session, "1020455", 3600, 5, app_config)
+        fetch_digitransit_stop(session, "hsl:1020455", 3600, 5, app_config)
 
     # 404 Not Found
     mock_404 = mocker.MagicMock()
     mock_404.status_code = 404
     session.post.return_value = mock_404
     with pytest.raises(LookupError, match="not found on Digitransit"):
-        fetch_digitransit_stop(session, "1020455", 3600, 5, app_config)
+        fetch_digitransit_stop(session, "hsl:1020455", 3600, 5, app_config)
 
     # GraphQL errors
     mock_gql_err = mocker.MagicMock()
@@ -248,7 +248,7 @@ def test_fetch_digitransit_error_branches(mocker):
     mock_gql_err.json.return_value = {"errors": [{"message": "Rate limit exceeded"}]}
     session.post.return_value = mock_gql_err
     with pytest.raises(ValueError, match="GraphQL errors"):
-        fetch_digitransit_stop(session, "1020455", 3600, 5, app_config)
+        fetch_digitransit_stop(session, "hsl:1020455", 3600, 5, app_config)
 
     # Empty stop data
     mock_empty = mocker.MagicMock()
@@ -256,4 +256,4 @@ def test_fetch_digitransit_error_branches(mocker):
     mock_empty.json.return_value = {"data": {}}
     session.post.return_value = mock_empty
     with pytest.raises(LookupError, match="returned no stop or station data"):
-        fetch_digitransit_stop(session, "1020455", 3600, 5, app_config)
+        fetch_digitransit_stop(session, "hsl:1020455", 3600, 5, app_config)

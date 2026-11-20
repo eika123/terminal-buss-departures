@@ -28,6 +28,37 @@ DIGITRANSIT_MODE_MAP: dict[str, str] = {
 }
 
 
+DIGITRANSIT_FEED_ALIASES: dict[str, str] = {
+    "nysse": "tampere",
+    "turku": "FOLI",
+    "foli": "FOLI",
+    "oulu": "OULU",
+    "joensuu": "Joensuu",
+    "jojo": "Joensuu",
+    "kuopio": "Kuopio",
+    "vilkku": "Kuopio",
+}
+
+
+def _resolve_digitransit_ids(clean_id: str) -> tuple[str, str]:
+    """Resolve user stop ID into primary and fallback Digitransit GraphQL IDs."""
+    raw_id = clean_id.strip()
+    if ":" not in raw_id:
+        raise ValueError(
+            f"Digitransit stop ID '{raw_id}' must include a feed prefix (e.g. 'hsl:{raw_id}' or 'turku:{raw_id}')."
+        )
+
+    prefix, bare = raw_id.split(":", 1)
+    prefix_lower = prefix.strip().lower()
+    bare = bare.strip()
+
+    if prefix_lower in ("hsl", "hki"):
+        return bare, f"HSL:{bare}"
+    if feed := DIGITRANSIT_FEED_ALIASES.get(prefix_lower):
+        return f"{feed}:{bare}", raw_id
+    return raw_id, raw_id
+
+
 def _parse_digitransit_stoptimes(
     stoptimes: list[dict[str, Any]],
 ) -> list[DepartureData]:
@@ -96,19 +127,7 @@ class DigitransitTransitProvider(TransitProvider):
         departures_count: int,
         app_config: dict[str, Any],
     ) -> NormalizedStopData:
-        raw_id = clean_id.strip()
-        raw_lower = raw_id.lower()
-        if raw_lower.startswith("nysse:"):
-            bare = raw_id[6:].strip()
-            id1 = f"tampere:{bare}"
-            id2 = raw_id
-        elif ":" in raw_id and not raw_lower.startswith("hsl:"):
-            id1 = raw_id
-            id2 = raw_id
-        else:
-            bare_id = raw_id[4:].strip() if raw_lower.startswith("hsl:") else raw_id
-            id1 = bare_id
-            id2 = f"HSL:{bare_id}"
+        id1, id2 = _resolve_digitransit_ids(clean_id)
 
         raw_template = """
         query GetDepartures($id1: String!, $id2: String!, $n: Int!, $t: Int!) {
