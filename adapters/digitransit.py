@@ -255,7 +255,11 @@ def search_digitransit_stops(
             feed_filter = f"{feed}:"
             urls = (DIGITRANSIT_FINLAND_URL,)
 
-    gql = "query SearchStops($name: String!) { stops(name: $name) { gtfsId name code platformCode } }"
+    gql = (
+        "query SearchStops($name: String!) { "
+        "stops(name: $name) { gtfsId name code platformCode "
+        "stoptimesWithoutPatterns(numberOfDepartures: 2) { headsign } } }"
+    )
     headers = {"Content-Type": "application/json", "digitransit-subscription-key": sub_key}
     results: list[tuple[str, str]] = []
     seen: set[str] = set()
@@ -277,6 +281,15 @@ def search_digitransit_stops(
             seen.add(gtfs_id)
             label = stop.get("name") or gtfs_id
             details = [p for p in (stop.get("code"), stop.get("platformCode")) if p]
+            headsigns = list(
+                dict.fromkeys(
+                    st["headsign"]
+                    for st in (stop.get("stoptimesWithoutPatterns") or [])
+                    if st.get("headsign")
+                )
+            )
+            if headsigns:
+                details.append(f"→ {', '.join(headsigns)}")
             if details:
                 label = f"{label} ({', '.join(details)})"
             results.append((label, f"fi:{gtfs_id}"))

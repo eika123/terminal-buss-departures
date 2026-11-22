@@ -18,8 +18,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("query", help="Stop name to search for (e.g. 'T-Centralen').")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--fi", action="store_true", help="Search Finland (Digitransit).")
-    group.add_argument("--se", action="store_true", help="Search Sweden (ResRobot).")
+    group.add_argument(
+        "--fi",
+        action="store_true",
+        help="Search Finland (Digitransit; platform-level IDs with sample destinations). Use the destination and your local knowledge to infer the direction.",
+    )
+    group.add_argument(
+        "--se",
+        action="store_true",
+        help="Search Sweden (ResRobot; whole-station 74xxxxxxx IDs covering all directions).",
+    )
     parser.add_argument("--city", help="Filter results by city/feed (e.g. 'kuopio', 'helsinki', 'stockholm').")
     parser.add_argument("--limit", type=int, default=10, help="Max results (default: 10).")
     args = parser.parse_args(argv)
