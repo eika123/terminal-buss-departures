@@ -10,6 +10,7 @@ from adapters.digitransit import (
     default_digitransit_hsl_provider,
 )
 from adapters.entur import default_entur_provider
+from adapters.resrobot import default_resrobot_provider
 from config import ConfigError
 from models import StopPlaceState, TransitProvider, TransitProviderKey
 from resilience import ConsecutiveFailureTracker
@@ -34,6 +35,7 @@ _PROVIDER_REGISTRY: dict[TransitProviderKey | str, TransitProvider] = {
     "entur": default_entur_provider,
     "digitransit_hsl": default_digitransit_hsl_provider,
     "digitransit_finland": default_digitransit_finland_provider,
+    "resrobot": default_resrobot_provider,
 }
 
 
@@ -75,10 +77,6 @@ def register_transit_provider(
 
 def get_transit_provider(name: TransitProviderKey | str) -> TransitProvider:
     """Resolve a TransitProvider by name from registry."""
-    if name == "resrobot":
-        raise NotImplementedError(
-            "ResRobot (Sweden) adapter requires API key configuration."
-        )
     if name == "rejseplanen":
         raise NotImplementedError(
             "Rejseplanen (Denmark) adapter requires API key configuration."

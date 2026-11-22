@@ -53,10 +53,9 @@ def test_detect_provider(raw_id: str, expected_provider: str, expected_clean_id:
 
 def test_get_transit_provider_registry_and_errors():
     """Verify get_transit_provider error contracts and custom registration."""
-    # ResRobot and Rejseplanen without API keys raise NotImplementedError
-    with pytest.raises(NotImplementedError, match="ResRobot"):
-        get_transit_provider("resrobot")
+    assert get_transit_provider("resrobot").provider_id == "resrobot"
 
+    # Rejseplanen without API keys raises NotImplementedError
     with pytest.raises(NotImplementedError, match="Rejseplanen"):
         get_transit_provider("rejseplanen")
 

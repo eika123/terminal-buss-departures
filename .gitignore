@@ -20,3 +20,4 @@ ai_refactor_prompt.txt
 .agents/semgrep_findings.json
 .coverage
 .agents/sourcery_suggestions.csv
+.vscode

@@ -30,18 +30,19 @@ DIGITRANSIT_MODE_MAP: dict[str, str] = {
 
 DIGITRANSIT_FEED_ALIASES: dict[str, str] = {
     "foli": "FOLI",
+    "turku": "FOLI",
     "hameenlinna": "Hameenlinna",
     "joensuu": "Joensuu",
     "jojo": "Joensuu",
     "juna": "digitraffic",
     "jyvaskyla": "LINKKI",
+    "linkki": "LINKKI",
     "kajaani": "Kajaani",
     "kotka": "Kotka",
     "kouvola": "Kouvola",
     "kuopio": "Kuopio",
     "lahti": "Lahti",
     "lappeenranta": "Lappeenranta",
-    "linkki": "LINKKI",
     "matka": "MATKA",
     "mikkeli": "Mikkeli",
     "oulu": "OULU",
@@ -51,7 +52,6 @@ DIGITRANSIT_FEED_ALIASES: dict[str, str] = {
     "rovaniemi": "Rovaniemi",
     "salo": "Salo",
     "tampere": "tampere",
-    "turku": "FOLI",
     "vaasa": "Vaasa",
     "vilkku": "Kuopio",
 }
@@ -229,6 +229,60 @@ class DigitransitTransitProvider(TransitProvider):
             longitude=float(lon) if lon is not None else None,
             departures=departures,
         )
+
+
+def search_digitransit_stops(
+    session: requests.Session,
+    query: str,
+    app_config: dict[str, Any],
+    limit: int = 10,
+    city: str | None = None,
+) -> list[tuple[str, str]]:
+    """Search Digitransit Finland & HSL for stops by name, returning (name, fi:<gtfsId>)."""
+    sub_key = app_config.get("DIGITRANSIT_SUBSCRIPTION_KEY")
+    if not sub_key:
+        raise ConfigError("Missing required config 'DIGITRANSIT_SUBSCRIPTION_KEY' in .env.")
+
+    feed_filter: str | None = None
+    urls = (DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL)
+    if city:
+        city_lower = city.strip().lower()
+        if city_lower in ("hsl", "hki", "helsinki"):
+            feed_filter = "HSL:"
+            urls = (DIGITRANSIT_HSL_URL,)
+        else:
+            feed = DIGITRANSIT_FEED_ALIASES.get(city_lower, city.strip())
+            feed_filter = f"{feed}:"
+            urls = (DIGITRANSIT_FINLAND_URL,)
+
+    gql = "query SearchStops($name: String!) { stops(name: $name) { gtfsId name code platformCode } }"
+    headers = {"Content-Type": "application/json", "digitransit-subscription-key": sub_key}
+    results: list[tuple[str, str]] = []
+    seen: set[str] = set()
+
+    for url in urls:
+        resp = session.post(
+            url,
+            json={"query": gql, "variables": {"name": query}},
+            headers=headers,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        for stop in resp.json().get("data", {}).get("stops") or []:
+            gtfs_id = stop.get("gtfsId")
+            if not gtfs_id or gtfs_id in seen:
+                continue
+            if feed_filter and not gtfs_id.startswith(feed_filter):
+                continue
+            seen.add(gtfs_id)
+            label = stop.get("name") or gtfs_id
+            details = [p for p in (stop.get("code"), stop.get("platformCode")) if p]
+            if details:
+                label = f"{label} ({', '.join(details)})"
+            results.append((label, f"fi:{gtfs_id}"))
+            if len(results) >= limit:
+                return results
+    return results
 
 
 default_digitransit_hsl_provider = DigitransitTransitProvider(
