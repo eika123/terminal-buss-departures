@@ -1,4 +1,4 @@
-# Europlean Transit Departure Board (avgangstider)
+# European Transit Departure Board (avgangstider)
 
 A terminal-based transit departure board that fetches real-time public transit schedules (bus, tram, rail, metro, ferry) in Norway, Finland, Sweden and
 Germany, enriched with local weather observations from the Norwegian Meteorological Institute (MET Norway / Yr).
