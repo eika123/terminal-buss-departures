@@ -1,11 +1,15 @@
-# Nordic Transit Departure Board (avgangstider)
+# Europlean Transit Departure Board (avgangstider)
 
-A terminal-based transit departure board that fetches real-time public transit schedules (bus, tram, rail, metro, ferry) in Norway (via Entur GraphQL) and the Helsinki region in Finland (via Digitransit HSL), enriched with local weather observations from the Norwegian Meteorological Institute (MET Norway / Yr).
+A terminal-based transit departure board that fetches real-time public transit schedules (bus, tram, rail, metro, ferry) in Norway, Finland, Sweden and
+Germany, enriched with local weather observations from the Norwegian Meteorological Institute (MET Norway / Yr).
 
 > **Current Regional Support Note:**
 > - 🇳🇴 **Norway**: Fully supported via Entur across all national transit operators.
-> - 🇫🇮 **Finland**: Tested and active for the **Helsinki metropolitan region (HSL)**. (National Digitransit routing exists in adapters, but testing has focused on HSL).
-> - 🇸🇪 **Sweden** & 🇩🇰 **Denmark**: **Not yet supported**. ID schemes and country detection hooks exist in the code base, but API integrations (ResRobot/Trafiklab and Rejseplanen) require separate API keys and adapter implementations.
+> - 🇫🇮 **Finland**: Fully supported via digitransit APIs for HSL (Helsinki) and rest of Finland.
+> - 🇸🇪 **Sweden**: Fully supported
+> - 🇩🇪 **Germany** | Supported via Transitous (MOTIS v2)
+> - 🇩🇰 **Denmark**: **Not yet supported**. ID schemes and country detection hooks exist in the code base. Waiting for Rejseplanen API keys to test
+
 
 The interface is localized in **Norwegian**, **Swedish**, **Finnish**, and **English**, and displays clean, ANSI/color-coded outputs with emoji icons and terminal hyperlinks.
 
