@@ -81,3 +81,23 @@ Kristiinankatu = "fi:FOLI:148"
 # or using the town alias:
 Kristiinankatu = "fi:turku:148"
 ```
+
+## Sweden
+
+Sweden uses **Trafiklab ResRobot v2.1** (`RESROBOT_SUBSCRIPTION_KEY` in `.env`), which aggregates all of Sweden (SL Stockholm, Västtrafik, Skånetrafiken, SJ/national rail, regional buses, and ferries) under 9-digit `74xxxxxxx` Rikshållplats IDs.
+
+### Finding Stop IDs
+
+Use the built-in search command:
+```bash
+avgangstider search --se "T-Centralen" --city stockholm
+```
+
+Add the result to `stoppesteder.txt` with the `se:` prefix:
+```ini
+[stockholm]
+T-Centralen T-bana = "se:740020749"
+```
+
+*(Note: Regional operators like SL and Västtrafik also have their own separate APIs if operator-specific features such as per-platform IDs are ever needed.)*
+

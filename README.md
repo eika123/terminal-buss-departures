@@ -97,7 +97,10 @@ ET_CLIENT_NAME="myname-departureboard-4821"
 # Free API subscription key from: https://digitransit.fi/en/developers/api-registration/
 DIGITRANSIT_SUBSCRIPTION_KEY="your-digitransit-key"
 
-# 4. Optional: Default interface language ('no', 'sv', 'fi', 'en')
+# 4. Sweden ResRobot key
+RESROBOT_SUBSCRIPTION_KEY="your-swedish-resrobot-key"
+
+# 5. Optional: Default interface language ('no', 'sv', 'fi', 'en')
 LANGUAGE="en"
 ```
 
@@ -143,7 +146,7 @@ The `stoppesteder.txt` file **must** be organized into sections enclosed in squa
 | 🇳🇴 **Norway** | Entur (NSR) | **Supported** | [stoppesteder.entur.org](https://stoppesteder.entur.org/) | `NSR:StopPlace:58366` |
 | 🇫🇮 **Helsinki (Finland)** | Digitransit / HSL | **Supported** | [reittiopas.hsl.fi](https://reittiopas.hsl.fi/) (click on a stop to view URL/code) or [digitransit.fi](https://digitransit.fi/) | `fi:hsl:1040101` (or `HSL:1040101`) |
 | 🇫🇮 **Other Finland** (Tampere, Turku, Oulu, Joensuu, Kuopio, etc.) | Digitransit Finland | **Supported** | [digitransit.fi](https://digitransit.fi/) — see [adapters/README.md](adapters/README.md#finland) and [adapters/example-stop-places/finland.txt](adapters/example-stop-places/finland.txt) | `fi:tampere:0805`, `fi:turku:148`, `fi:oulu:...`, `fi:joensuu:23575`, `fi:kuopio:174245` |
-| 🇸🇪 **Sweden** | Trafiklab (ResRobot) | *Planned / Not implemented* | [trafiklab.se/api/resrobot-v21/](https://www.trafiklab.se/) | *(Requires API key implementation)* |
+| 🇸🇪 **Sweden** | Trafiklab (ResRobot v2.1) | **Supported** | Find stop names at [reseplanerare.resrobot.se](https://reseplanerare.resrobot.se/), then run `avgangstider search --se "<name>"` — see [adapters/README.md](adapters/README.md#sweden) | `se:740000001` (or `se:740020749`) |
 | 🇩🇰 **Denmark** | Rejseplanen | *Planned / Not implemented* | [labs.rejseplanen.dk](https://labs.rejseplanen.dk/) | *(Requires API key implementation)* |
 
 #### Example `stoppesteder.txt`:
