@@ -34,7 +34,7 @@ Any other Digitransit Finland feed ID can be used directly as `fi:<feedId>:<stop
 
 ### Adding Stops to `stoppesteder.txt`
 
-Prefix the `gtfsId` with `fi:` under any section in `stoppesteder.txt`:
+Prefix the `gtfsId` with `fi:` under any section in `stoppesteder.txt` (see [example-stop-places/finland.txt](example-stop-places/finland.txt) for a full set of Finnish examples):
 
 ```ini
 [turku]
@@ -73,7 +73,7 @@ Any other Digitransit Finland feed ID can be used directly as `fi:<feedId>:<stop
 
 ### Adding Stops to `stoppesteder.txt`
 
-Prefix the `gtfsId` with `fi:` under any section in `stoppesteder.txt`:
+Prefix the `gtfsId` with `fi:` under any section in `stoppesteder.txt` (see [example-stop-places/finland.txt](example-stop-places/finland.txt) for a full set of Finnish examples):
 
 ```ini
 [turku]

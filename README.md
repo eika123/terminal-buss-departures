@@ -142,7 +142,7 @@ The `stoppesteder.txt` file **must** be organized into sections enclosed in squa
 | :--- | :--- | :--- | :--- | :--- |
 | 🇳🇴 **Norway** | Entur (NSR) | **Supported** | [stoppesteder.entur.org](https://stoppesteder.entur.org/) | `NSR:StopPlace:58366` |
 | 🇫🇮 **Helsinki (Finland)** | Digitransit / HSL | **Supported** | [reittiopas.hsl.fi](https://reittiopas.hsl.fi/) (click on a stop to view URL/code) or [digitransit.fi](https://digitransit.fi/) | `fi:hsl:1040101` (or `HSL:1040101`) |
-| 🇫🇮 **Other Finland** (Tampere, Turku, Oulu, Joensuu, Kuopio, etc.) | Digitransit Finland | **Supported** | [digitransit.fi](https://digitransit.fi/) — see [adapters/README.md](adapters/README.md#finland) for feed IDs & `curl` lookup | `fi:tampere:0805`, `fi:turku:148`, `fi:oulu:...`, `fi:joensuu:23575`, `fi:kuopio:174245` |
+| 🇫🇮 **Other Finland** (Tampere, Turku, Oulu, Joensuu, Kuopio, etc.) | Digitransit Finland | **Supported** | [digitransit.fi](https://digitransit.fi/) — see [adapters/README.md](adapters/README.md#finland) and [adapters/example-stop-places/finland.txt](adapters/example-stop-places/finland.txt) | `fi:tampere:0805`, `fi:turku:148`, `fi:oulu:...`, `fi:joensuu:23575`, `fi:kuopio:174245` |
 | 🇸🇪 **Sweden** | Trafiklab (ResRobot) | *Planned / Not implemented* | [trafiklab.se/api/resrobot-v21/](https://www.trafiklab.se/) | *(Requires API key implementation)* |
 | 🇩🇰 **Denmark** | Rejseplanen | *Planned / Not implemented* | [labs.rejseplanen.dk](https://labs.rejseplanen.dk/) | *(Requires API key implementation)* |
 

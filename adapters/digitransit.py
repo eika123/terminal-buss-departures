@@ -29,12 +29,30 @@ DIGITRANSIT_MODE_MAP: dict[str, str] = {
 
 
 DIGITRANSIT_FEED_ALIASES: dict[str, str] = {
-    "turku": "FOLI",
     "foli": "FOLI",
-    "oulu": "OULU",
+    "hameenlinna": "Hameenlinna",
     "joensuu": "Joensuu",
     "jojo": "Joensuu",
+    "juna": "digitraffic",
+    "jyvaskyla": "LINKKI",
+    "kajaani": "Kajaani",
+    "kotka": "Kotka",
+    "kouvola": "Kouvola",
     "kuopio": "Kuopio",
+    "lahti": "Lahti",
+    "lappeenranta": "Lappeenranta",
+    "linkki": "LINKKI",
+    "matka": "MATKA",
+    "mikkeli": "Mikkeli",
+    "oulu": "OULU",
+    "pori": "Pori",
+    "raasepori": "Raasepori",
+    "rauma": "Rauma",
+    "rovaniemi": "Rovaniemi",
+    "salo": "Salo",
+    "tampere": "tampere",
+    "turku": "FOLI",
+    "vaasa": "Vaasa",
     "vilkku": "Kuopio",
 }
 

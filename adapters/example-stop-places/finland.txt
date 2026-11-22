@@ -1,0 +1,153 @@
+# Eksempel på stoppesteder for Finland (Digitransit)
+# Kopier ønskede seksjoner inn i stoppesteder.txt
+
+# Helsinki (HSL)
+[helsinki]
+Rautatientori = "fi:hsl:1040101"
+Kamppi = "fi:hsl:1020455"
+
+# Tampere
+[tampere]
+Keskustori = "fi:tampere:0805"
+Hervantajärvi = "fi:tampere:0839"
+
+# Turku (Föli)
+[turku]
+Kristiinankatu = "fi:turku:148"
+Kauppatori A3 = "fi:turku:1903"
+
+# Joensuu
+[joensuu]
+Joensuun pääkirjasto I = "fi:joensuu:23575"
+Yliopistokatu E = "fi:joensuu:23591"
+
+# Kuopio
+[kuopio]
+Kuopion lentoasema = "fi:kuopio:303023"
+
+
+#Rovaniemi
+[rovaniemi]
+Lapinkäviäntie E = "fi:rovaniemi:337154"
+Kauppatori E = "fi:rovaniemi:206212"
+Lyseonpuisto L = "fi:rovaniemi:206228"
+Keskusuirheilukenttä I = "fi:rovaniemi:206229"
+Pohjolankatu P = "fi:rovaniemi:206158"
+Pohjolankatu E = "fi:rovaniemi:206159"
+
+
+#Lahti
+[lahti]
+Kansanopisto P = "fi:lahti:103613"
+Kansanopisto E = "fi:lahti:103614"
+Iso-Paavolankatu L = "fi:lahti:103581"
+Iso-Paavolankatu I = "fi:lahti:103580"
+
+
+#Hämeenlinna
+[hameenlinna]
+Ystävyydenpuisto P = "fi:hameenlinna:154166"
+Ystävyydenpuisto E = "fi:hameenlinna:313614"
+
+
+#Jyväskylä
+[jyvaskyla-rautatieasema]
+
+# use "juna" or "digitraffic" feed tag for trains
+Jyväskylä = "fi:juna:JY"
+
+Jyväskylä Matkakeskus = "fi:jyvaskyla:186632"
+Linkkikeskus = "fi:jyvaskyla:1"
+
+
+#Kajaani
+[kajaani]
+Vienankatu P = "fi:kajaani:308283"
+Vienankatu E = "fi:kajaani:308284"
+Rautatieasema = "fi:juna:KAJ"
+
+
+
+#Kotka
+[kotka]
+Rautatieasema = "fi:juna:KTA"
+Kotkantie 1 Rautatieasema keskustaan = "fi:kotka:155504"
+Kotkantie 2 L (Rautatieasema) = "fi:kotka:155503"
+
+#Kouvola
+[kouvola]
+Rautatieasema = "fi:juna:KV"
+Matkakeskus laiturit 1-7 = "fi:kouvola:321527"
+Matkakeskus H1 = "fi:kouvola:155786"
+
+
+#Lappeenranta
+[lappeenranta]
+Rautatieasema = "fi:juna:LR"
+Matkakeskus = "fi:lappeenranta:205363"
+Lappeenranta, matkakeskus = "fi:MATKA:362518"
+Ratakatu 18 keskustasta = "fi:lappeenranta:205362"
+Kauppakatu 73 keskustasta = "fi:lappeenranta:205237"
+
+
+#Mikkeli
+[mikkeli]
+Rautatieasema = "fi:juna:MI"
+Hallitustori Raatihuone, I = "fi:mikkeli:310514"
+Hallitustori Raatihuone = "fi:mikkeli:310514"
+
+
+#Oulu
+[oulu]
+Junat-rautatieasema = "fi:juna:OL"
+Rautatieasema = "fi:oulu:120788"
+Matkakeskus P = "fi:oulu:184167"
+Matkakeskus E = "fi:oulu:184168"
+
+
+#Pori
+[pori]
+Junat-rautatieasema = "fi:juna:PRI"
+PORI Matkakeskus = "fi:pori:999902"
+Asema-aukio I = "fi:pori:204558"
+Asema-aukio I CITY = "fi:pori:404718"
+
+
+#Raasepori
+[raasepori-tammisaari]
+Tammisaari = "fi:juna:TMS"
+Vanha hautausmaa I = "fi:raasepori:162691"
+Vanha hautausmaa L = "fi:raasepori:162388"
+Dragsvik = "fi:juna:DRA"
+
+
+[raasepori-hanko]
+Hanko = "fi:juna:HNK"
+Hanko Pohjoinen = "fi:juna:HKP"
+
+
+
+#Rauma
+[rauma]
+Citymarket L = "fi:rauma:392322"
+Citymarket I = "fi:rauma:397618"
+
+
+
+#Salo
+[salo]
+Salo = "fi:juna:SLO"
+Tapionpuisto = "fi:salo:490318"
+Salon teatteri L = "fi:salo:500606"
+Salo linja-autoasema = "fi:salo:3220280"
+
+
+#Vaasa
+[vaasa]
+Vaasa = "fi:juna:VS"
+Vaasanpuistikko / matkakeskus P = "fi:vaasa:302392"
+Vaasanpuistikko / matkakeskus E = "fi:vaasa:302387"
+
+
+
+
