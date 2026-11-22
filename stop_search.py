@@ -8,7 +8,9 @@ import dotenv
 import requests
 
 from adapters.digitransit import search_digitransit_stops
+from adapters.rejseplanen import search_rejseplanen_stops
 from adapters.resrobot import search_resrobot_stops
+from adapters.transitous import search_transitous_stops
 from config import ConfigError, load_app_settings
 
 
@@ -28,6 +30,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Search Sweden (ResRobot; whole-station 74xxxxxxx IDs covering all directions).",
     )
+    group.add_argument(
+        "--dk",
+        action="store_true",
+        help="Search Denmark (Rejseplanen; whole-station 86xxxxxxx IDs covering all directions).",
+    )
+    group.add_argument(
+        "--de",
+        action="store_true",
+        help="Search Germany (Transitous; uses TRANSITOUS_USER_AGENT or MET_USER_AGENT).",
+    )
     parser.add_argument("--city", help="Filter results by city/feed (e.g. 'kuopio', 'helsinki', 'stockholm').")
     parser.add_argument("--limit", type=int, default=10, help="Max results (default: 10).")
     args = parser.parse_args(argv)
@@ -39,8 +51,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.fi:
             results = search_digitransit_stops(session, args.query, app_config, limit=args.limit, city=args.city)
-        else:
+        elif args.se:
             results = search_resrobot_stops(session, args.query, app_config, limit=args.limit, city=args.city)
+        elif args.dk:
+            results = search_rejseplanen_stops(session, args.query, app_config, limit=args.limit, city=args.city)
+        else:
+            results = search_transitous_stops(session, args.query, app_config, limit=args.limit, country="DE")
     except (ConfigError, requests.RequestException) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

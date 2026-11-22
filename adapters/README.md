@@ -101,3 +101,25 @@ T-Centralen T-bana = "se:740020749"
 
 *(Note: Regional operators like SL and Västtrafik also have their own separate APIs if operator-specific features such as per-platform IDs are ever needed.)*
 
+## Germany
+
+For Germany we use **Transitous (MOTIS v2)** (`https://api.transitous.org/api/v1`), which requires no API key — only a contact `User-Agent` in `.env` (`TRANSITOUS_USER_AGENT`, or it falls back to `MET_USER_AGENT` / `ENTUR_CLIENT_NAME`).
+
+### Finding Stop IDs
+
+Find a stop name on [transitous.org](https://transitous.org/), [bahn.de](https://www.bahn.de/), or Google Maps, then run:
+```bash
+avgangstider search --de "Berlin Hbf"
+```
+The name doesn't have to bee exact. For example
+```bash
+avgangstider search --de "Alexanderplatz"
+```
+will list several stops.
+
+
+Add the result to `stoppesteder.txt` with the `de:` prefix:
+```ini
+[berlin]
+S+U Hauptbahnhof/Washingtonplatz (Berlin) = "de:de-VBB_de:11000:900003205::4"
+```

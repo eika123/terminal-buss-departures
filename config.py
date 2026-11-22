@@ -40,6 +40,8 @@ ENTUR_GRAPHQL_URL = "https://api.entur.io/journey-planner/v3/graphql"
 DIGITRANSIT_HSL_URL = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1"
 DIGITRANSIT_FINLAND_URL = "https://api.digitransit.fi/routing/v2/finland/gtfs/v1"
 RESROBOT_URL = "https://api.resrobot.se/v2.1/departureBoard"
+REJSEPLANEN_URL = "https://www.rejseplanen.dk/api/departureBoard"
+TRANSITOUS_URL = "https://api.transitous.org/api/v1"
 
 
 def get_xdg_config_dir() -> Path:

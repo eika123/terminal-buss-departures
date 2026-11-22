@@ -9,6 +9,7 @@ TransitProviderKey = Literal[
     "digitransit_finland",
     "resrobot",
     "rejseplanen",
+    "transitous",
 ]
 
 

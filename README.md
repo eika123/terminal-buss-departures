@@ -148,6 +148,7 @@ The `stoppesteder.txt` file **must** be organized into sections enclosed in squa
 | 🇫🇮 **Other Finland** (Tampere, Turku, Oulu, Joensuu, Kuopio, etc.) | Digitransit Finland | **Supported** | [digitransit.fi](https://digitransit.fi/) — see [adapters/README.md](adapters/README.md#finland) and [adapters/example-stop-places/finland.txt](adapters/example-stop-places/finland.txt) | `fi:tampere:0805`, `fi:turku:148`, `fi:oulu:...`, `fi:joensuu:23575`, `fi:kuopio:174245` |
 | 🇸🇪 **Sweden** | Trafiklab (ResRobot v2.1) | **Supported** | Find stop names at [reseplanerare.resrobot.se](https://reseplanerare.resrobot.se/), then run `avgangstider search --se "<name>"` — see [adapters/README.md](adapters/README.md#sweden) | `se:740000001` (or `se:740020749`) |
 | 🇩🇰 **Denmark** | Rejseplanen | *Planned / Not implemented* | [labs.rejseplanen.dk](https://labs.rejseplanen.dk/) | *(Requires API key implementation)* |
+| 🇩🇪 **Germany** | Transitous (MOTIS v2) | **Supported** | Find stop names via [transitous.org](https://transitous.org/), [bahn.de](https://www.bahn.de/), or Google Maps, then run `avgangstider search --de "<name>"` — see [adapters/README.md](adapters/README.md#germany) | `de:de-VBB_de:11000:900003205::4` |
 
 #### Example `stoppesteder.txt`:
 

@@ -259,6 +259,8 @@ def _run_display_loop(
                 stop_presenter.render(state)
 
             print("=" * (DEFAULT_TERMINAL_WIDTH + 1))
+            if any(s.provider.provider_id == "transitous" for s in stops_state.values()):
+                print("Data provided by Transitous (https://transitous.org)")
             time.sleep(args.intervall)
 
     except MaxConsecutiveFailuresExceeded as mcfe:

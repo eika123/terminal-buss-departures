@@ -54,10 +54,7 @@ def test_detect_provider(raw_id: str, expected_provider: str, expected_clean_id:
 def test_get_transit_provider_registry_and_errors():
     """Verify get_transit_provider error contracts and custom registration."""
     assert get_transit_provider("resrobot").provider_id == "resrobot"
-
-    # Rejseplanen without API keys raises NotImplementedError
-    with pytest.raises(NotImplementedError, match="Rejseplanen"):
-        get_transit_provider("rejseplanen")
+    assert get_transit_provider("rejseplanen").provider_id == "rejseplanen"
 
     # Unknown provider falls back to default Entur provider
     assert get_transit_provider("unknown_provider") == default_entur_provider
