@@ -105,8 +105,8 @@ class TransitousTransitProvider(TransitProvider):
 
         return NormalizedStopData(
             name=stop_name,
-            lat=place.get("lat"),
-            lon=place.get("lon"),
+            latitude=place.get("lat"),
+            longitude=place.get("lon"),
             departures=_parse_transitous_stoptimes(payload.get("stopTimes") or []),
         )
 
