@@ -47,6 +47,7 @@ def parse_arguments(
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Nordic transit departure board with live weather forecast.",
+        epilog="subcommands:\n  search                Search for Finnish/Swedish stop IDs (run 'avgangstider search --help' to find out more)",
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
@@ -269,6 +270,11 @@ def _run_display_loop(
 
 
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "search":
+        from stop_search import main as search_main
+
+        raise SystemExit(search_main(sys.argv[2:]))
+
     custom_env, custom_stops, cli_lang = _parse_early_cli_options(sys.argv)
     env_path, stops_path = resolve_config_and_stops_files(custom_env, custom_stops)
     active_lang = _resolve_active_language(cli_lang, env_path)
