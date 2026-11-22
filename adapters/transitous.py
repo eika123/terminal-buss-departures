@@ -29,17 +29,17 @@ TRANSITOUS_MODE_MAP: dict[str, str] = {
 
 def _get_transitous_headers(app_config: dict[str, Any]) -> dict[str, str]:
     """Builds User-Agent header from TRANSITOUS_USER_AGENT (or MET_USER_AGENT / ENTUR_CLIENT_NAME)."""
-    user_agent = (
+    if user_agent := (
         app_config.get("TRANSITOUS_USER_AGENT")
         or app_config.get("MET_USER_AGENT")
         or app_config.get("ENTUR_CLIENT_NAME")
-    )
-    if not user_agent:
+    ):
+        return {"User-Agent": user_agent}
+    else:
         raise ConfigError(
             "Missing required config 'TRANSITOUS_USER_AGENT' (or 'MET_USER_AGENT') in .env.\n"
             "Transitous requires contact info in the User-Agent header."
         )
-    return {"User-Agent": user_agent}
 
 
 def _parse_transitous_stoptimes(raw_stoptimes: list[dict[str, Any]]) -> list[DepartureData]:
@@ -111,6 +111,26 @@ class TransitousTransitProvider(TransitProvider):
         )
 
 
+def _collect_transitous_stop_matches(
+    items: list[dict[str, Any]],
+    cc_upper: str | None,
+    prefix: str,
+    limit: int,
+) -> list[tuple[str, str]]:
+    """Filters and formats Transitous geocode items into (name, <cc>:<id>) pairs."""
+    results: list[tuple[str, str]] = []
+    for item in items:
+        if cc_upper and (item.get("country") or "").upper() != cc_upper:
+            continue
+        stop_id = item.get("id")
+        if not stop_id:
+            continue
+        results.append((item.get("name") or stop_id, f"{prefix}{stop_id}"))
+        if len(results) >= limit:
+            break
+    return results
+
+
 def search_transitous_stops(
     session: requests.Session,
     query: str,
@@ -129,17 +149,7 @@ def search_transitous_stops(
     resp.raise_for_status()
     cc_upper = country.upper() if country else None
     prefix = f"{cc_upper.lower()}:" if cc_upper else ""
-    results: list[tuple[str, str]] = []
-    for item in resp.json() or []:
-        if cc_upper and (item.get("country") or "").upper() != cc_upper:
-            continue
-        stop_id = item.get("id")
-        if not stop_id:
-            continue
-        results.append((item.get("name") or stop_id, f"{prefix}{stop_id}"))
-        if len(results) >= limit:
-            break
-    return results
+    return _collect_transitous_stop_matches(resp.json() or [], cc_upper, prefix, limit)
 
 
 default_transitous_provider = TransitousTransitProvider()

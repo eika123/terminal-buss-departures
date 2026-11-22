@@ -238,6 +238,22 @@ def _resolve_system_term(
     return None
 
 
+def _resolve_override_term(
+    mode_key: str,
+    system_id: str | None,
+    mode_overrides: dict[str, str] | None,
+    system_overrides: dict[str, str] | None,
+) -> str | None:
+    """Checks system-specific and global mode overrides in priority order."""
+    if system_id and system_overrides:
+        specific_key = f"{system_id}.{mode_key}"
+        if specific_key in system_overrides:
+            return system_overrides[specific_key]
+    if mode_overrides and mode_key in mode_overrides:
+        return mode_overrides[mode_key]
+    return None
+
+
 def resolve_transit_term(
     mode: str,
     system_id: str | None,
@@ -252,15 +268,11 @@ def resolve_transit_term(
     """
     mode_key = (mode or "").lower()
 
-    # 1. System-specific override (e.g. "oslo_ruter.metro" = "T")
-    if system_id and system_overrides:
-        specific_key = f"{system_id}.{mode_key}"
-        if specific_key in system_overrides:
-            return system_overrides[specific_key]
-
-    # 2. Global mode override (e.g. "metro" = "T")
-    if mode_overrides and mode_key in mode_overrides:
-        return mode_overrides[mode_key]
+    # 1 & 2. System-specific or global mode override
+    if override := _resolve_override_term(
+        mode_key, system_id, mode_overrides, system_overrides
+    ):
+        return override
 
     # 3. System identity lookup
     if system_id and (

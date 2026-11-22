@@ -325,6 +325,47 @@ def _process_header_line(
     return profile_name
 
 
+def _parse_stop_places_lines(
+    lines: Any, file_path: Path, lang: str | None
+) -> dict[str, StopProfile]:
+    """Parses lines from a stop places file into a mapping of StopProfile objects."""
+    profiles: dict[str, StopProfile] = {}
+    active_profile_name: str | None = None
+
+    for line_no, raw_line in enumerate(lines, start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("[") and line.endswith("]"):
+            active_profile_name = _process_header_line(
+                line, line_no, file_path, lang, profiles
+            )
+            continue
+
+        if "=" not in line:
+            continue
+
+        if active_profile_name is None:
+            print(
+                translate_international_message(
+                    "err_no_section_header", lang=lang, path=file_path
+                )
+            )
+            print(
+                translate_international_message(
+                    "line_missing_header", lang=lang, line=line_no, text=line
+                )
+            )
+            sys.exit(1)
+
+        if entry := _parse_stop_entry(line):
+            clean_name, clean_id = entry
+            profiles[active_profile_name].stops[clean_name] = clean_id
+
+    return profiles
+
+
 def load_stop_places(
     file_path: Path, lang: str | None = None
 ) -> dict[str, StopProfile]:
@@ -338,53 +379,9 @@ def load_stop_places(
     if not file_path.is_file():
         _handle_missing_stops_file(file_path, lang)
 
-    profiles: dict[str, StopProfile] = {}
-    active_profile_name: str | None = None
-
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            for line_no, line in enumerate(f, start=1):
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-
-                if line.startswith("[") and line.endswith("]"):
-                    active_profile_name = _process_header_line(
-                        line, line_no, file_path, lang, profiles
-                    )
-                    continue
-
-                if "=" not in line:
-                    continue
-
-                if active_profile_name is None:
-                    print(
-                        translate_international_message(
-                            "err_no_section_header", lang=lang, path=file_path
-                        )
-                    )
-                    print(
-                        translate_international_message(
-                            "line_missing_header", lang=lang, line=line_no, text=line
-                        )
-                    )
-                    sys.exit(1)
-
-                if entry := _parse_stop_entry(line):
-                    clean_name, clean_id = entry
-                    profiles[active_profile_name].stops[clean_name] = clean_id
-
-        if not profiles:
-            print(
-                translate_international_message(
-                    "err_no_profiles_found", lang=lang, path=file_path
-                )
-            )
-            print(translate_international_message("define_at_least_one", lang=lang))
-            print('[home]\nKlimavegen = "NSR:StopPlace:53434"')
-            sys.exit(1)
-
-        return profiles
+            profiles = _parse_stop_places_lines(f, file_path, lang)
     except OSError as e:
         logger.error("Failed to read stop places file: %s", e)
         print(
@@ -393,3 +390,15 @@ def load_stop_places(
             )
         )
         sys.exit(1)
+
+    if not profiles:
+        print(
+            translate_international_message(
+                "err_no_profiles_found", lang=lang, path=file_path
+            )
+        )
+        print(translate_international_message("define_at_least_one", lang=lang))
+        print('[home]\nKlimavegen = "NSR:StopPlace:53434"')
+        sys.exit(1)
+
+    return profiles

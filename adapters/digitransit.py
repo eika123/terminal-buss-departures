@@ -231,6 +231,55 @@ class DigitransitTransitProvider(TransitProvider):
         )
 
 
+def _resolve_digitransit_search_targets(
+    city: str | None,
+) -> tuple[str | None, tuple[str, ...]]:
+    """Returns (feed_filter, urls) for a Digitransit stop search."""
+    if not city:
+        return None, (DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL)
+    city_lower = city.strip().lower()
+    if city_lower in ("hsl", "hki", "helsinki"):
+        return "HSL:", (DIGITRANSIT_HSL_URL,)
+    feed = DIGITRANSIT_FEED_ALIASES.get(city_lower, city.strip())
+    return f"{feed}:", (DIGITRANSIT_FINLAND_URL,)
+
+
+def _format_digitransit_stop_label(stop: dict[str, Any], gtfs_id: str) -> str:
+    """Builds a human-readable label for a Digitransit stop search result."""
+    label = stop.get("name") or gtfs_id
+    details = [p for p in (stop.get("code"), stop.get("platformCode")) if p]
+    headsigns = list(
+        dict.fromkeys(
+            st["headsign"]
+            for st in (stop.get("stoptimesWithoutPatterns") or [])
+            if st.get("headsign")
+        )
+    )
+    if headsigns:
+        details.append(f"→ {', '.join(headsigns)}")
+    return f"{label} ({', '.join(details)})" if details else label
+
+
+def _collect_digitransit_stop_matches(
+    stops: list[dict[str, Any]],
+    feed_filter: str | None,
+    seen: set[str],
+    results: list[tuple[str, str]],
+    limit: int,
+) -> None:
+    """Appends matching, deduplicated stops to results up to limit."""
+    for stop in stops:
+        gtfs_id = stop.get("gtfsId")
+        if not gtfs_id or gtfs_id in seen:
+            continue
+        if feed_filter and not gtfs_id.startswith(feed_filter):
+            continue
+        seen.add(gtfs_id)
+        results.append((_format_digitransit_stop_label(stop, gtfs_id), f"fi:{gtfs_id}"))
+        if len(results) >= limit:
+            return
+
+
 def search_digitransit_stops(
     session: requests.Session,
     query: str,
@@ -243,18 +292,7 @@ def search_digitransit_stops(
     if not sub_key:
         raise ConfigError("Missing required config 'DIGITRANSIT_SUBSCRIPTION_KEY' in .env.")
 
-    feed_filter: str | None = None
-    urls = (DIGITRANSIT_FINLAND_URL, DIGITRANSIT_HSL_URL)
-    if city:
-        city_lower = city.strip().lower()
-        if city_lower in ("hsl", "hki", "helsinki"):
-            feed_filter = "HSL:"
-            urls = (DIGITRANSIT_HSL_URL,)
-        else:
-            feed = DIGITRANSIT_FEED_ALIASES.get(city_lower, city.strip())
-            feed_filter = f"{feed}:"
-            urls = (DIGITRANSIT_FINLAND_URL,)
-
+    feed_filter, urls = _resolve_digitransit_search_targets(city)
     gql = (
         "query SearchStops($name: String!) { "
         "stops(name: $name) { gtfsId name code platformCode "
@@ -272,29 +310,10 @@ def search_digitransit_stops(
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
-        for stop in resp.json().get("data", {}).get("stops") or []:
-            gtfs_id = stop.get("gtfsId")
-            if not gtfs_id or gtfs_id in seen:
-                continue
-            if feed_filter and not gtfs_id.startswith(feed_filter):
-                continue
-            seen.add(gtfs_id)
-            label = stop.get("name") or gtfs_id
-            details = [p for p in (stop.get("code"), stop.get("platformCode")) if p]
-            headsigns = list(
-                dict.fromkeys(
-                    st["headsign"]
-                    for st in (stop.get("stoptimesWithoutPatterns") or [])
-                    if st.get("headsign")
-                )
-            )
-            if headsigns:
-                details.append(f"→ {', '.join(headsigns)}")
-            if details:
-                label = f"{label} ({', '.join(details)})"
-            results.append((label, f"fi:{gtfs_id}"))
-            if len(results) >= limit:
-                return results
+        stops = resp.json().get("data", {}).get("stops") or []
+        _collect_digitransit_stop_matches(stops, feed_filter, seen, results, limit)
+        if len(results) >= limit:
+            break
     return results
 
 
